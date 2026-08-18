@@ -1,0 +1,118 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  --bg: #f5f7fb;
+  --panel: #ffffff;
+  --sidebar: #ffffff;
+  --text: #1e293b;
+  --muted: #64748b;
+  --faint: #94a3b8;
+  --line: #e8edf3;
+  --soft: #f1f5f9;
+}
+
+.dark {
+  color-scheme: dark;
+  --bg: #0b0f14;
+  --panel: #151a21;
+  --sidebar: #10151c;
+  --text: #f1f5f9;
+  --muted: #94a3b8;
+  --faint: #64748b;
+  --line: #243041;
+  --soft: #1b2330;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  @apply font-sans antialiased;
+  background: var(--bg);
+  color: var(--text);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+
+.dark * {
+  scrollbar-color: #334155 transparent;
+}
+
+@layer components {
+  .card {
+    @apply rounded-2xl border border-line/80 bg-white shadow-card dark:border-[#243041] dark:bg-[#151a21] dark:shadow-none;
+  }
+
+  .input {
+    @apply h-11 w-full rounded-xl border border-line bg-white px-3.5 text-sm text-ink outline-none transition placeholder:text-ink-faint focus:border-brand focus:ring-2 focus:ring-brand/20 dark:border-[#243041] dark:bg-[#1b2330] dark:text-slate-100;
+  }
+
+  .label {
+    @apply mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint;
+  }
+
+  .btn {
+    @apply inline-flex h-11 items-center justify-center gap-2 rounded-xl px-4 text-sm font-medium transition;
+  }
+
+  .btn-primary {
+    @apply btn bg-brand text-white shadow-soft hover:bg-brand-600;
+  }
+
+  .btn-gradient {
+    @apply btn bg-brand-gradient text-white shadow-soft hover:opacity-95;
+  }
+
+  .btn-ghost {
+    @apply btn border border-line bg-white text-ink hover:bg-slate-50 dark:border-[#243041] dark:bg-[#151a21] dark:text-slate-100 dark:hover:bg-[#1b2330];
+  }
+
+  .section-title {
+    @apply text-sm font-semibold text-brand;
+  }
+
+  .page-shell {
+    @apply overflow-hidden rounded-[28px] border border-white/70 bg-white/80 shadow-card backdrop-blur-sm dark:border-[#243041] dark:bg-[#151a21]/90;
+  }
+
+  .pastel {
+    @apply rounded-2xl border border-white/60 shadow-soft;
+  }
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+  opacity: 0.45;
+}
+
+[contenteditable]:empty:before {
+  content: attr(data-placeholder);
+  color: #94a3b8;
+}
+
+.card {
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+@media print {
+  aside,
+  .no-print,
+  button,
+  nav {
+    display: none !important;
+  }
+  .lg\:pl-\[250px\] {
+    padding-left: 0 !important;
+  }
+  body {
+    background: white !important;
+  }
+}
