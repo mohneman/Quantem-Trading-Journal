@@ -45,14 +45,24 @@ export function PortfolioPage() {
         ) : (
           <div className="mt-6 grid gap-4 md:grid-cols-2">
             {data.accounts.map((a) => (
-              <article key={a.id} className="card p-5">
+              <article
+                key={a.id}
+                className="card cursor-pointer p-5"
+                onClick={() => setOpen(a.type === "Prop" ? "propAccount" : "account", { accountId: a.id })}
+              >
                 <div className="flex items-start justify-between">
                   <div>
                     <p className="text-xs uppercase tracking-wide text-ink-faint">{a.type}</p>
                     <h3 className="mt-1 text-lg font-semibold dark:text-white">{a.name}</h3>
                     <p className="text-sm text-ink-muted">{a.website || "No website"}</p>
                   </div>
-                  <button className="text-ink-faint hover:text-loss" onClick={() => deleteAccount(a.id)}>
+                  <button
+                    className="text-ink-faint hover:text-loss"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      deleteAccount(a.id);
+                    }}
+                  >
                     <Trash2 size={16} />
                   </button>
                 </div>

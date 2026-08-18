@@ -1,12 +1,12 @@
 import { useState } from "react";
-import { BookOpen, CalendarDays, Flame, Plus, Smile, Target, Trash2 } from "lucide-react";
+import { BookOpen, CalendarDays, ChevronLeft, ChevronRight, Flame, Plus, Smile, Target, Trash2 } from "lucide-react";
 import { PageHeader } from "../components/layout/PageHeader";
 import { Input } from "../components/ui/Field";
 import { moodMonth, TODAY_ISO } from "../data";
 import { useMenu } from "../hooks";
 import { useModal } from "../context/ModalContext";
 import { useStore } from "../store";
-import { monthDay, uid, weekdayName } from "../lib";
+import { journalSnippet, monthDay, uid, weekdayName } from "../lib";
 
 const moodEmoji: Record<string, string> = {
   Excited: "🤩",
@@ -21,7 +21,7 @@ export function JournalsPage() {
   const { setOpen } = useModal();
   const { data, setTasks } = useStore();
   const [draft, setDraft] = useState("");
-  const [calMonth] = useState({ y: 2026, m: 7 });
+  const [calMonth, setCalMonth] = useState({ y: 2026, m: 7 });
   const [selected, setSelected] = useState(TODAY_ISO);
   const tasks = data.tasks;
   const journals = [...data.journals].sort((a, b) => b.date.localeCompare(a.date));
@@ -41,7 +41,7 @@ export function JournalsPage() {
     <div>
       <PageHeader
         title="Daily Journal"
-        subtitle="Capture routines, daily tasks, and the context of your day."
+        subtitle="Track your day, A+ setups, psychology, and performance."
         onMenu={onMenu}
       />
       <div className="page-shell p-5 sm:p-7">
@@ -51,6 +51,7 @@ export function JournalsPage() {
               DAILY JOURNAL
             </span>
             <h2 className="mt-2 text-2xl font-semibold dark:text-white">My daily journals</h2>
+            <p className="mt-1 text-sm text-ink-muted">Track your day, A+ setups, psychology, and performance.</p>
           </div>
           <button className="btn-gradient" onClick={() => setOpen("newDay")}>
             <Plus size={16} /> New Day
@@ -89,7 +90,7 @@ export function JournalsPage() {
                         {moodEmoji[j.mood] ?? "🙂"} {j.mood}
                       </span>
                     </div>
-                    {j.notes ? <p className="mt-2 truncate text-xs text-ink-faint">{j.notes}</p> : null}
+                    {journalSnippet(j.notes) ? <p className="mt-2 truncate text-xs text-ink-faint">{journalSnippet(j.notes)}</p> : null}
                   </button>
                 ))}
               </div>
@@ -144,16 +145,30 @@ export function JournalsPage() {
 
           <div className="space-y-5">
             <div className="card p-4">
-              <h3 className="mb-3 font-semibold dark:text-white">August 2026</h3>
+              <div className="mb-3 flex items-center justify-between">
+                <h3 className="font-semibold dark:text-white">
+                  {new Date(calMonth.y, calMonth.m, 1).toLocaleString("en-US", { month: "long", year: "numeric" })}
+                </h3>
+                <div className="flex gap-1">
+                  <button className="rounded-lg p-1 hover:bg-slate-50 dark:hover:bg-white/10" onClick={() => setCalMonth((m) => (m.m === 0 ? { y: m.y - 1, m: 11 } : { y: m.y, m: m.m - 1 }))}>
+                    <ChevronLeft size={16} />
+                  </button>
+                  <button className="rounded-lg p-1 hover:bg-slate-50 dark:hover:bg-white/10" onClick={() => setCalMonth((m) => (m.m === 11 ? { y: m.y + 1, m: 0 } : { y: m.y, m: m.m + 1 }))}>
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
+              </div>
               <MiniCal
-                selected={Number(selected.slice(8))}
+                year={calMonth.y}
+                month={calMonth.m}
+                selected={selected}
                 dates={dated}
-                today={18}
-                onSelect={(d) => {
-                  const iso = `2026-08-${String(d).padStart(2, "0")}`;
+                today={TODAY_ISO}
+                onSelect={(iso) => {
                   setSelected(iso);
                   const hit = journals.find((j) => j.date === iso);
                   if (hit) setOpen("editDay", { journalId: hit.id });
+                  else setOpen("newDay", { date: iso });
                 }}
               />
             </div>
@@ -180,7 +195,7 @@ export function JournalsPage() {
             <div className="rounded-2xl bg-amber-50/80 p-4 dark:bg-amber-500/10">
               <h3 className="mb-3 font-semibold dark:text-white">Quick Stats</h3>
               <ul className="space-y-2 text-sm">
-                <li className="flex justify-between"><span className="text-ink-muted">This month</span><b>{journals.filter((j) => j.date.startsWith("2026-08")).length}</b></li>
+                <li className="flex justify-between"><span className="text-ink-muted">This month</span><b>{journals.filter((j) => j.date.startsWith(`${calMonth.y}-${String(calMonth.m + 1).padStart(2, "0")}`)).length}</b></li>
                 <li className="flex justify-between"><span className="text-ink-muted">Writing streak</span><b className="text-brand">{Math.min(journals.length, 7)} days</b></li>
                 <li className="flex justify-between"><span className="text-ink-muted">Avg per week</span><b>{(journals.length / 4).toFixed(1)}</b></li>
               </ul>
@@ -188,7 +203,7 @@ export function JournalsPage() {
           </div>
         </div>
       </div>
-      <span className="sr-only">{calMonth.y}</span>
+      <span className="sr-only">{selected}</span>
     </div>
   );
 }
@@ -204,12 +219,13 @@ function Mini({ label, value, icon, tint }: { label: string; value: string; icon
 }
 
 function MiniCal({
-  selected, onSelect, dates, today,
+  year, month, selected, onSelect, dates, today,
 }: {
-  selected: number; onSelect: (n: number) => void; dates: Set<string>; today: number;
+  year: number; month: number; selected: string; onSelect: (iso: string) => void; dates: Set<string>; today: string;
 }) {
-  const first = new Date(2026, 7, 1).getDay();
-  const cells = Array.from({ length: first + 31 }, (_, i) => (i < first ? null : i - first + 1));
+  const first = new Date(year, month, 1).getDay();
+  const dim = new Date(year, month + 1, 0).getDate();
+  const cells = Array.from({ length: first + dim }, (_, i) => (i < first ? null : i - first + 1));
   return (
     <div>
       <div className="mb-2 grid grid-cols-7 text-center text-[10px] font-semibold text-ink-faint">
@@ -218,14 +234,16 @@ function MiniCal({
       <div className="grid grid-cols-7 gap-1">
         {cells.map((day, i) => {
           if (!day) return <span key={i} />;
-          const iso = `2026-08-${String(day).padStart(2, "0")}`;
+          const iso = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
           const has = dates.has(iso);
+          const isToday = iso === today;
+          const isSel = iso === selected;
           return (
             <button
               key={i}
-              onClick={() => onSelect(day)}
+              onClick={() => onSelect(iso)}
               className={`relative h-9 rounded-lg text-sm ${
-                has ? "bg-emerald-100 font-semibold text-emerald-700" : day === today ? "border border-violet-400 text-violet-700" : day === selected ? "bg-violet-100 font-semibold text-violet-700" : "text-ink-muted hover:bg-slate-50"
+                has ? "bg-emerald-100 font-semibold text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300" : isToday ? "border border-violet-400 text-violet-700" : isSel ? "bg-violet-100 font-semibold text-violet-700 dark:bg-violet-500/20" : "text-ink-muted hover:bg-slate-50 dark:hover:bg-white/5"
               }`}
             >
               {day}

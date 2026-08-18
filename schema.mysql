@@ -1,0 +1,334 @@
+-- Quantem / RyzeLog MySQL schema (canonical)
+-- Import in Yegara cPanel phpMyAdmin: open phpMyAdmin → Import tab → Choose File → this file → Go.
+-- Import schema.mysql (or scheme.mysql) FIRST, then seed.sql.
+-- If cPanel prefixes databases (e.g. youruser_quantem), create that DB in MySQL Databases
+-- and change the name below to match.
+
+CREATE DATABASE IF NOT EXISTS `quantem`
+  CHARACTER SET utf8mb4
+  COLLATE utf8mb4_unicode_ci;
+
+USE `quantem`;
+
+SET NAMES utf8mb4;
+SET FOREIGN_KEY_CHECKS = 0;
+
+DROP TABLE IF EXISTS `journal_tasks`;
+DROP TABLE IF EXISTS `journal_plans`;
+DROP TABLE IF EXISTS `checklist_items`;
+DROP TABLE IF EXISTS `trade_accounts`;
+DROP TABLE IF EXISTS `trades`;
+DROP TABLE IF EXISTS `journal_days`;
+DROP TABLE IF EXISTS `notes`;
+DROP TABLE IF EXISTS `mind_maps`;
+DROP TABLE IF EXISTS `checklists`;
+DROP TABLE IF EXISTS `payouts`;
+DROP TABLE IF EXISTS `backtests`;
+DROP TABLE IF EXISTS `coupons`;
+DROP TABLE IF EXISTS `economic_events`;
+DROP TABLE IF EXISTS `symbols`;
+DROP TABLE IF EXISTS `focus_tasks`;
+DROP TABLE IF EXISTS `settings`;
+DROP TABLE IF EXISTS `sessions`;
+DROP TABLE IF EXISTS `accounts`;
+DROP TABLE IF EXISTS `users`;
+
+SET FOREIGN_KEY_CHECKS = 1;
+
+-- Auth + profile (SPA currently stores users in localStorage key `q-users`)
+CREATE TABLE `users` (
+  `id` VARCHAR(36) NOT NULL,
+  `name` VARCHAR(120) NOT NULL,
+  `email` VARCHAR(191) NOT NULL,
+  `phone` VARCHAR(40) NOT NULL DEFAULT '',
+  `password_hash` VARCHAR(255) NOT NULL DEFAULT '',
+  `provider` ENUM('email', 'google') NOT NULL DEFAULT 'email',
+  `reset_token` VARCHAR(64) DEFAULT NULL,
+  `avatar` TEXT,
+  `initials` VARCHAR(8) NOT NULL DEFAULT '',
+  `affiliate_code` VARCHAR(40) NOT NULL DEFAULT '',
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_users_email` (`email`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Login sessions (SPA key `q-session`)
+CREATE TABLE `sessions` (
+  `id` VARCHAR(36) NOT NULL,
+  `user_id` VARCHAR(36) NOT NULL,
+  `email` VARCHAR(191) NOT NULL,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `expires_at` DATETIME DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_sessions_user` (`user_id`),
+  KEY `idx_sessions_email` (`email`),
+  CONSTRAINT `fk_sessions_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Prop / personal / demo trading accounts
+CREATE TABLE `accounts` (
+  `id` VARCHAR(36) NOT NULL,
+  `user_id` VARCHAR(36) NOT NULL,
+  `name` VARCHAR(160) NOT NULL,
+  `type` ENUM('Prop', 'Personal', 'Real Account', 'Demo') NOT NULL DEFAULT 'Prop',
+  `challenge_type` VARCHAR(40) NOT NULL DEFAULT '',
+  `website` VARCHAR(255) NOT NULL DEFAULT '',
+  `profit_split` VARCHAR(20) NOT NULL DEFAULT '',
+  `drawdown` VARCHAR(20) NOT NULL DEFAULT '',
+  `target` VARCHAR(20) NOT NULL DEFAULT '',
+  `status` VARCHAR(40) NOT NULL DEFAULT 'Phase 1',
+  `balance` DECIMAL(14,2) NOT NULL DEFAULT 0.00,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_accounts_user` (`user_id`),
+  KEY `idx_accounts_type` (`type`),
+  CONSTRAINT `fk_accounts_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `trades` (
+  `id` VARCHAR(36) NOT NULL,
+  `user_id` VARCHAR(36) NOT NULL,
+  `account_id` VARCHAR(36) DEFAULT NULL,
+  `no` INT NOT NULL DEFAULT 0,
+  `trade_date` DATE NOT NULL,
+  `symbol` VARCHAR(20) NOT NULL,
+  `direction` VARCHAR(8) NOT NULL DEFAULT '',
+  `session` VARCHAR(40) NOT NULL DEFAULT '',
+  `grade` VARCHAR(8) NOT NULL DEFAULT '',
+  `rr` VARCHAR(20) NOT NULL DEFAULT '',
+  `sl_pips` VARCHAR(20) NOT NULL DEFAULT '',
+  `tp_pips` VARCHAR(20) NOT NULL DEFAULT '',
+  `risk` VARCHAR(20) NOT NULL DEFAULT '',
+  `outcome` ENUM('WIN', 'LOSS', 'BE', 'OPEN') NOT NULL DEFAULT 'OPEN',
+  `pnl` DECIMAL(14,2) NOT NULL DEFAULT 0.00,
+  `psychology` JSON DEFAULT NULL,
+  `checklist_name` VARCHAR(120) NOT NULL DEFAULT '',
+  `rules` JSON DEFAULT NULL,
+  `notes` TEXT,
+  `proof_url` TEXT,
+  `after_url` TEXT,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_trades_user` (`user_id`),
+  KEY `idx_trades_account` (`account_id`),
+  KEY `idx_trades_date` (`trade_date`),
+  KEY `idx_trades_symbol` (`symbol`),
+  KEY `idx_trades_user_date` (`user_id`, `trade_date`),
+  CONSTRAINT `fk_trades_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_trades_account` FOREIGN KEY (`account_id`) REFERENCES `accounts` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `trade_accounts` (
+  `trade_id` VARCHAR(36) NOT NULL,
+  `account_id` VARCHAR(36) NOT NULL,
+  PRIMARY KEY (`trade_id`, `account_id`),
+  KEY `idx_trade_accounts_account` (`account_id`),
+  CONSTRAINT `fk_trade_accounts_trade` FOREIGN KEY (`trade_id`) REFERENCES `trades` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_trade_accounts_account` FOREIGN KEY (`account_id`) REFERENCES `accounts` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `journal_days` (
+  `id` VARCHAR(36) NOT NULL,
+  `user_id` VARCHAR(36) NOT NULL,
+  `title` VARCHAR(160) NOT NULL DEFAULT 'untitled',
+  `journal_date` DATE NOT NULL,
+  `mood` VARCHAR(40) NOT NULL DEFAULT '',
+  `tags` JSON DEFAULT NULL,
+  `gratitude` TEXT,
+  `affirmation` TEXT,
+  `notes` TEXT,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_journal_user` (`user_id`),
+  KEY `idx_journal_date` (`journal_date`),
+  KEY `idx_journal_user_date` (`user_id`, `journal_date`),
+  CONSTRAINT `fk_journal_days_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `journal_tasks` (
+  `id` VARCHAR(36) NOT NULL,
+  `journal_id` VARCHAR(36) NOT NULL,
+  `task_text` VARCHAR(255) NOT NULL,
+  `done` TINYINT(1) NOT NULL DEFAULT 0,
+  `sort_order` INT NOT NULL DEFAULT 0,
+  PRIMARY KEY (`id`),
+  KEY `idx_journal_tasks_journal` (`journal_id`),
+  CONSTRAINT `fk_journal_tasks_journal` FOREIGN KEY (`journal_id`) REFERENCES `journal_days` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `journal_plans` (
+  `id` VARCHAR(36) NOT NULL,
+  `journal_id` VARCHAR(36) NOT NULL,
+  `account_id` VARCHAR(36) DEFAULT NULL,
+  `balance` VARCHAR(40) NOT NULL DEFAULT '',
+  `trades` VARCHAR(40) NOT NULL DEFAULT '',
+  `pips` VARCHAR(40) NOT NULL DEFAULT '',
+  `risk` VARCHAR(20) NOT NULL DEFAULT '',
+  `amount` VARCHAR(40) NOT NULL DEFAULT '',
+  PRIMARY KEY (`id`),
+  KEY `idx_journal_plans_journal` (`journal_id`),
+  KEY `idx_journal_plans_account` (`account_id`),
+  CONSTRAINT `fk_journal_plans_journal` FOREIGN KEY (`journal_id`) REFERENCES `journal_days` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_journal_plans_account` FOREIGN KEY (`account_id`) REFERENCES `accounts` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `notes` (
+  `id` VARCHAR(36) NOT NULL,
+  `user_id` VARCHAR(36) NOT NULL,
+  `title` VARCHAR(160) NOT NULL DEFAULT 'New Note',
+  `html` MEDIUMTEXT,
+  `color` VARCHAR(16) NOT NULL DEFAULT '#00D1C1',
+  `pinned` TINYINT(1) NOT NULL DEFAULT 0,
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_notes_user` (`user_id`),
+  KEY `idx_notes_updated` (`updated_at`),
+  CONSTRAINT `fk_notes_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Canvas stored as JSON: { zoom, nodes: [{ id, x, y, text, color, type, parentId, imageUrl }] }
+CREATE TABLE `mind_maps` (
+  `id` VARCHAR(36) NOT NULL,
+  `user_id` VARCHAR(36) NOT NULL,
+  `title` VARCHAR(160) NOT NULL DEFAULT 'New Mind Map',
+  `color` VARCHAR(16) NOT NULL DEFAULT '#00D1C1',
+  `pinned` TINYINT(1) NOT NULL DEFAULT 0,
+  `zoom` DECIMAL(6,2) NOT NULL DEFAULT 1.00,
+  `canvas` JSON DEFAULT NULL,
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_mind_maps_user` (`user_id`),
+  CONSTRAINT `fk_mind_maps_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `checklists` (
+  `id` VARCHAR(36) NOT NULL,
+  `user_id` VARCHAR(36) NOT NULL,
+  `name` VARCHAR(120) NOT NULL,
+  `is_default` TINYINT(1) NOT NULL DEFAULT 0,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_checklists_user` (`user_id`),
+  CONSTRAINT `fk_checklists_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `checklist_items` (
+  `id` VARCHAR(36) NOT NULL,
+  `checklist_id` VARCHAR(36) NOT NULL,
+  `item_text` VARCHAR(500) NOT NULL,
+  `sort_order` INT NOT NULL DEFAULT 0,
+  PRIMARY KEY (`id`),
+  KEY `idx_checklist_items_checklist` (`checklist_id`),
+  CONSTRAINT `fk_checklist_items_checklist` FOREIGN KEY (`checklist_id`) REFERENCES `checklists` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `payouts` (
+  `id` VARCHAR(36) NOT NULL,
+  `user_id` VARCHAR(36) NOT NULL,
+  `account_id` VARCHAR(36) DEFAULT NULL,
+  `firm` VARCHAR(120) NOT NULL DEFAULT '',
+  `account_name` VARCHAR(160) NOT NULL DEFAULT '',
+  `size` VARCHAR(40) NOT NULL DEFAULT '',
+  `amount` DECIMAL(14,2) NOT NULL DEFAULT 0.00,
+  `profit_split` VARCHAR(20) NOT NULL DEFAULT '',
+  `payout` DECIMAL(14,2) NOT NULL DEFAULT 0.00,
+  `status` ENUM('Pending', 'Completed', 'Rejected') NOT NULL DEFAULT 'Pending',
+  `method` VARCHAR(40) NOT NULL DEFAULT '',
+  `request_date` DATE DEFAULT NULL,
+  `payout_date` DATE DEFAULT NULL,
+  `notes` TEXT,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_payouts_user` (`user_id`),
+  KEY `idx_payouts_account` (`account_id`),
+  KEY `idx_payouts_date` (`request_date`),
+  CONSTRAINT `fk_payouts_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_payouts_account` FOREIGN KEY (`account_id`) REFERENCES `accounts` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `backtests` (
+  `id` VARCHAR(36) NOT NULL,
+  `user_id` VARCHAR(36) NOT NULL,
+  `no` INT NOT NULL DEFAULT 0,
+  `backtest_date` DATE NOT NULL,
+  `symbol` VARCHAR(20) NOT NULL,
+  `direction` VARCHAR(8) NOT NULL DEFAULT '',
+  `scenario` VARCHAR(255) NOT NULL DEFAULT '',
+  `sl_pips` VARCHAR(20) NOT NULL DEFAULT '',
+  `tp_pips` VARCHAR(20) NOT NULL DEFAULT '',
+  `result` ENUM('WIN', 'LOSS') NOT NULL,
+  `notes` TEXT,
+  `rules` JSON DEFAULT NULL,
+  `chart5` TEXT,
+  `chart15` TEXT,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_backtests_user` (`user_id`),
+  KEY `idx_backtests_date` (`backtest_date`),
+  KEY `idx_backtests_symbol` (`symbol`),
+  CONSTRAINT `fk_backtests_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `coupons` (
+  `id` VARCHAR(36) NOT NULL,
+  `user_id` VARCHAR(36) DEFAULT NULL,
+  `firm` VARCHAR(120) NOT NULL,
+  `code` VARCHAR(64) NOT NULL,
+  `discount` VARCHAR(40) NOT NULL DEFAULT '',
+  `url` VARCHAR(255) NOT NULL DEFAULT '',
+  `expiry` DATE DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_coupons_user` (`user_id`),
+  KEY `idx_coupons_code` (`code`),
+  CONSTRAINT `fk_coupons_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `economic_events` (
+  `id` INT NOT NULL AUTO_INCREMENT,
+  `event_date` DATE NOT NULL,
+  `event_time` TIME NOT NULL DEFAULT '00:00:00',
+  `currency` VARCHAR(8) NOT NULL,
+  `event_name` VARCHAR(255) NOT NULL,
+  `impact` ENUM('HIGH', 'MED', 'LOW') NOT NULL DEFAULT 'MED',
+  `previous` VARCHAR(40) NOT NULL DEFAULT '',
+  `consensus` VARCHAR(40) NOT NULL DEFAULT '',
+  `actual` VARCHAR(40) NOT NULL DEFAULT '',
+  `better` TINYINT(1) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_events_date` (`event_date`),
+  KEY `idx_events_currency` (`currency`),
+  KEY `idx_events_date_currency` (`event_date`, `currency`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Per-user prefs (SPA theme key `q-theme`)
+CREATE TABLE `settings` (
+  `user_id` VARCHAR(36) NOT NULL,
+  `theme` ENUM('light', 'dark') NOT NULL DEFAULT 'light',
+  `prefs` JSON DEFAULT NULL,
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`user_id`),
+  CONSTRAINT `fk_settings_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `symbols` (
+  `id` INT NOT NULL AUTO_INCREMENT,
+  `user_id` VARCHAR(36) NOT NULL,
+  `symbol` VARCHAR(20) NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_symbols_user_symbol` (`user_id`, `symbol`),
+  KEY `idx_symbols_symbol` (`symbol`),
+  CONSTRAINT `fk_symbols_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `focus_tasks` (
+  `id` VARCHAR(36) NOT NULL,
+  `user_id` VARCHAR(36) NOT NULL,
+  `task_text` VARCHAR(255) NOT NULL,
+  `done` TINYINT(1) NOT NULL DEFAULT 0,
+  `sort_order` INT NOT NULL DEFAULT 0,
+  PRIMARY KEY (`id`),
+  KEY `idx_focus_tasks_user` (`user_id`),
+  CONSTRAINT `fk_focus_tasks_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

@@ -10,12 +10,12 @@ import {
 } from "lucide-react";
 import { PageHeader } from "../components/layout/PageHeader";
 import { Field, Input, Select } from "../components/ui/Field";
-import { calendarEvents } from "../data";
+import { calendarEvents, TODAY_ISO } from "../data";
 import { useMenu } from "../hooks";
 import { useModal } from "../context/ModalContext";
 import { Link } from "react-router-dom";
 import { useStore } from "../store";
-import { csvEscape, downloadText, formatPnl } from "../lib";
+import { csvEscape, downloadText, formatPnl, outcomeStreak, parseRr, rrFromPips } from "../lib";
 
 export function BacktestsPage() {
   const onMenu = useMenu();
@@ -72,14 +72,14 @@ export function BacktestsPage() {
               </thead>
               <tbody>
                 {rows.map((b) => (
-                  <tr key={b.id} className="border-b border-line dark:border-[#243041]">
+                  <tr key={b.id} className="cursor-pointer border-b border-line dark:border-[#243041]" onClick={() => setOpen("backtest", { backtestId: b.id })}>
                     <td className="px-3 py-2">#{b.no}</td>
                     <td className="px-3 py-2">{b.date}</td>
                     <td className="px-3 py-2 font-medium">{b.symbol}</td>
                     <td className="px-3 py-2">{b.direction}</td>
                     <td className={`px-3 py-2 font-semibold ${b.result === "WIN" ? "text-brand" : "text-loss"}`}>{b.result}</td>
                     <td className="px-3 py-2 text-ink-muted">{b.notes}</td>
-                    <td className="px-3 py-2"><button className="text-loss" onClick={() => deleteBacktest(b.id)}><Trash2 size={14} /></button></td>
+                    <td className="px-3 py-2"><button className="text-loss" onClick={(e) => { e.stopPropagation(); deleteBacktest(b.id); }}><Trash2 size={14} /></button></td>
                   </tr>
                 ))}
               </tbody>
@@ -102,14 +102,18 @@ export function StatsPage() {
         (data.backtests.reduce((s, b) => s + b.rules.filter((r) => r.checked).length / Math.max(1, b.rules.length), 0) / total) * 100
       )
     : 0;
+  const avgRr = total
+    ? data.backtests.reduce((s, b) => s + parseRr(rrFromPips(b.slPips, b.tpPips) || "0"), 0) / total
+    : 0;
+  const streak = outcomeStreak(data.backtests.map((b) => b.result));
   const cards = [
     ["TOTAL BACKTESTS", String(total)],
     ["WINS", String(wins)],
     ["LOSSES", String(losses)],
     ["WIN RATE", `${total ? Math.round((wins / total) * 100) : 0}%`],
-    ["AVG PLANNED R:R", "—"],
+    ["AVG PLANNED R:R", total ? `1:${avgRr.toFixed(2)}` : "—"],
     ["CHECKLIST ADHERENCE", `${adhere}%`],
-    ["CURRENT STREAK", "—"],
+    ["CURRENT STREAK", streak],
     ["SYMBOLS TESTED", String(new Set(data.backtests.map((b) => b.symbol)).size)],
   ];
   return (
@@ -160,15 +164,23 @@ export function CouponsPage() {
                 <p className="mt-1 text-xl font-semibold dark:text-white">{c.discount}</p>
                 <p className="mt-3 rounded-xl bg-slate-50 px-3 py-2 font-mono text-sm dark:bg-white/5">{c.code}</p>
                 <p className="mt-2 text-xs text-ink-faint">Expires {c.expiry}</p>
-                <button
-                  className="btn-primary mt-3"
-                  onClick={() => {
-                    void navigator.clipboard?.writeText(c.code);
-                    setCopied(c.id);
-                  }}
-                >
-                  <Copy size={14} /> {copied === c.id ? "Copied" : "Copy code"}
-                </button>
+                <div className="mt-3 flex gap-2">
+                  <button
+                    className="btn-primary"
+                    onClick={() => {
+                      void navigator.clipboard?.writeText(c.code);
+                      setCopied(c.id);
+                    }}
+                  >
+                    <Copy size={14} /> {copied === c.id ? "Copied" : "Copy code"}
+                  </button>
+                  <button
+                    className="btn-ghost"
+                    onClick={() => window.open(c.url, "_blank", "noopener")}
+                  >
+                    Visit offer
+                  </button>
+                </div>
               </article>
             ))}
           </div>
@@ -227,7 +239,7 @@ export function CalculatorPage() {
             <Field label="Stop-Loss (Pips)"><Input placeholder="e.g. 50" value={sl} onChange={(e) => setSl(e.target.value)} /></Field>
           </div>
           <div className="mt-4 flex justify-end gap-2">
-            <button className="btn-ghost" onClick={() => { setSl(""); setOut(null); }}>Reset</button>
+            <button className="btn-ghost" onClick={() => { setPair("EURUSD"); setBalance("10000"); setRisk("1"); setSl(""); setOut(null); }}>Reset</button>
             <button className="btn-primary" onClick={calc}>Calculate</button>
           </div>
         </div>
@@ -256,6 +268,7 @@ export function CalculatorPage() {
 export function CalendarPage() {
   const onMenu = useMenu();
   const [pair, setPair] = useState("All");
+  const [impacts, setImpacts] = useState<string[]>(["HIGH", "MED", "LOW"]);
   const [clock, setClock] = useState("");
   useEffect(() => {
     const tick = () => {
@@ -266,7 +279,12 @@ export function CalendarPage() {
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
   }, []);
-  const rows = calendarEvents.filter((e) => pair === "All" || e.currency === pair);
+  const rows = calendarEvents.filter((e) => (pair === "All" || e.currency === pair) && impacts.includes(e.impact));
+  const flags: Record<string, string> = { GBP: "🇬🇧", USD: "🇺🇸", EUR: "🇪🇺", CHF: "🇨🇭" };
+
+  function toggleImpact(level: string) {
+    setImpacts((p) => (p.includes(level) ? p.filter((x) => x !== level) : [...p, level]));
+  }
 
   return (
     <div>
@@ -283,9 +301,9 @@ export function CalendarPage() {
               ))}
             </div>
             <div className="flex items-center gap-3 text-xs">
-              <span className="text-red-500">● High</span>
-              <span className="text-amber-500">● Medium</span>
-              <span className="text-sky-500">● Low</span>
+              <button type="button" onClick={() => toggleImpact("HIGH")} className={impacts.includes("HIGH") ? "text-red-500" : "text-ink-faint"}>● High</button>
+              <button type="button" onClick={() => toggleImpact("MED")} className={impacts.includes("MED") ? "text-amber-500" : "text-ink-faint"}>● Medium</button>
+              <button type="button" onClick={() => toggleImpact("LOW")} className={impacts.includes("LOW") ? "text-sky-500" : "text-ink-faint"}>● Low</button>
             </div>
           </div>
         </div>
@@ -304,7 +322,7 @@ export function CalendarPage() {
                 <tr key={e.event} className="border-b border-line last:border-0 dark:border-[#243041]">
                   <td className="whitespace-nowrap px-4 py-3 text-ink-muted">{e.date}</td>
                   <td className="px-4 py-3">{e.left === "done" ? <CheckCircle2 size={16} className="text-brand" /> : e.left}</td>
-                  <td className="px-4 py-3"><span className="mr-2 text-xs font-semibold text-ink-faint">{e.currency}</span>{e.event}</td>
+                  <td className="px-4 py-3"><span className="mr-2">{flags[e.currency] ?? ""}</span><span className="mr-2 text-xs font-semibold text-ink-faint">{e.currency}</span>{e.event}</td>
                   <td className="px-4 py-3">
                     <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${e.impact === "HIGH" ? "bg-red-100 text-red-600" : e.impact === "MED" ? "bg-amber-100 text-amber-700" : "bg-emerald-100 text-emerald-700"}`}>{e.impact}</span>
                   </td>
@@ -324,29 +342,39 @@ export function CalendarPage() {
 export function PayoutsPage() {
   const onMenu = useMenu();
   const { data } = useStore();
+  const { setOpen } = useModal();
+  const [month] = useState({ y: 2026, m: 7 });
+  const [selected, setSelected] = useState(TODAY_ISO);
   const completed = data.payouts.filter((p) => p.status === "Completed");
+  const pending = data.payouts.filter((p) => p.status === "Pending");
   const total = completed.reduce((s, p) => s + p.payout, 0);
   const avg = completed.length ? total / completed.length : 0;
   const largest = completed.reduce((m, p) => Math.max(m, p.payout), 0);
-  const firms = Object.entries(data.payouts.reduce<Record<string, number>>((a, p) => {
-    a[p.firm || "Unknown"] = (a[p.firm || "Unknown"] ?? 0) + p.payout;
-    return a;
-  }, {}));
-  const topFirm = firms.sort((a, b) => b[1] - a[1])[0]?.[0] ?? "N/A";
+  const lastDate = [...completed].sort((a, b) => b.payoutDate.localeCompare(a.payoutDate))[0]?.payoutDate ?? "N/A";
+  const dayRows = data.payouts.filter((p) => p.payoutDate === selected || p.requestDate === selected);
+  const first = new Date(month.y, month.m, 1).getDay();
+  const dim = new Date(month.y, month.m + 1, 0).getDate();
+  const cells = Array.from({ length: first + dim }, (_, i) => (i < first ? null : i - first + 1));
+
   return (
     <div>
       <PageHeader title="Payout Dashboard" subtitle="Keep track of your payouts from different prop firms." onMenu={onMenu} />
       <div className="page-shell p-5 sm:p-7">
         <span className="inline-flex rounded-full bg-brand/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-brand">PERFORMANCE FIGURES</span>
-        <h2 className="mt-2 text-2xl font-semibold dark:text-white">Payouts Dashboard</h2>
-        <p className="text-sm text-ink-muted">Tuesday, August 18</p>
+        <div className="mt-2 flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 className="text-2xl font-semibold dark:text-white">Payouts Dashboard</h2>
+            <p className="text-sm text-ink-muted">Tuesday, August 18</p>
+          </div>
+          <button className="btn-gradient" onClick={() => setOpen("payout")}><Plus size={16} /> Add Payout</button>
+        </div>
         <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
           {[
             ["Lifetime Payout", formatPnl(total).replace("+", "")],
             ["Average Payout", formatPnl(avg).replace("+", "")],
             ["Largest Payout", formatPnl(largest).replace("+", "")],
-            ["Most Profitable Firm", topFirm],
-            ["Payout Count", String(data.payouts.length)],
+            ["Last Payout Date", lastDate],
+            ["Pending Payouts", String(pending.length)],
           ].map(([l, v]) => (
             <div key={l} className="rounded-2xl bg-gradient-to-br from-teal-50 to-violet-50 p-4 dark:from-white/5 dark:to-white/0">
               <p className="text-xs text-ink-muted">{l}</p>
@@ -355,15 +383,66 @@ export function PayoutsPage() {
           ))}
         </div>
         <div className="mt-5 grid gap-4 xl:grid-cols-[1.5fr_1fr]">
+          <div className="card p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="font-semibold dark:text-white">{new Date(month.y, month.m, 1).toLocaleString("en-US", { month: "long", year: "numeric" })}</h3>
+            </div>
+            <div className="mb-1 grid grid-cols-7 text-center text-[10px] font-semibold text-ink-faint">
+              {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => <span key={`${d}-${i}`}>{d}</span>)}
+            </div>
+            <div className="grid grid-cols-7 gap-1">
+              {cells.map((day, i) => {
+                if (!day) return <span key={i} />;
+                const iso = `${month.y}-${String(month.m + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+                const has = data.payouts.some((p) => p.payoutDate === iso || p.requestDate === iso);
+                return (
+                  <button
+                    key={i}
+                    onClick={() => setSelected(iso)}
+                    className={`h-9 rounded-lg text-sm ${iso === selected ? "bg-violet-100 font-semibold text-violet-700 dark:bg-violet-500/20" : has ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20" : "text-ink-muted hover:bg-slate-50 dark:hover:bg-white/5"}`}
+                  >
+                    {day}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <div className="card p-4">
+            <h3 className="font-semibold dark:text-white">Day Details</h3>
+            <p className="mt-1 text-xs text-ink-faint">{selected}</p>
+            {dayRows.length === 0 ? (
+              <p className="mt-8 text-center text-sm text-ink-faint">Click on a day with a payout to view details here.</p>
+            ) : (
+              <ul className="mt-3 space-y-2 text-sm">
+                {dayRows.map((p) => (
+                  <li key={p.id} className="flex cursor-pointer justify-between rounded-xl bg-slate-50 px-3 py-2 dark:bg-white/5" onClick={() => setOpen("payout", { payoutId: p.id })}>
+                    <span>{p.firm} · {p.status}</span>
+                    <b>{formatPnl(p.payout)}</b>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+        <div className="mt-5 grid gap-4 xl:grid-cols-[1.5fr_1fr]">
           <EmptyCard title="Monthly Payouts" tint="bg-amber-50/80 dark:bg-amber-500/10" empty={!data.payouts.length} />
-          <EmptyCard title="Payouts By Firm" tint="bg-emerald-50/80 dark:bg-emerald-500/10" empty={!firms.length} items={firms.map(([f, v]) => `${f}: ${formatPnl(v)}`)} />
+          <div className="rounded-2xl bg-[#0F1B2D] p-4 text-white">
+            <h3 className="font-semibold">Performance Summary</h3>
+            <ul className="mt-3 space-y-2 text-sm">
+              <li className="flex justify-between"><span className="text-slate-300">Last 30 Days Net Payouts</span><b>{formatPnl(completed.filter((p) => p.payoutDate >= "2026-07-19").reduce((s, p) => s + p.payout, 0))}</b></li>
+              <li className="flex justify-between"><span className="text-slate-300">Pending Payouts</span><b className="text-amber-300">{formatPnl(pending.reduce((s, p) => s + p.payout, 0))}</b></li>
+              <li className="flex justify-between"><span className="text-slate-300">Completed</span><b>{completed.length}</b></li>
+            </ul>
+          </div>
         </div>
         <div className="card mt-5 p-4">
           <h3 className="font-semibold dark:text-white">Recent Activity</h3>
           {data.payouts.length === 0 ? <p className="mt-8 text-center text-sm text-ink-faint">No data yet</p> : (
             <ul className="mt-3 space-y-2 text-sm">
               {data.payouts.slice(0, 8).map((p) => (
-                <li key={p.id} className="flex justify-between"><span>{p.firm} · {p.status}</span><b>{formatPnl(p.payout)}</b></li>
+                <li key={p.id} className="flex cursor-pointer justify-between" onClick={() => setOpen("payout", { payoutId: p.id })}>
+                  <span>{p.firm} · {p.status}</span><b>{formatPnl(p.payout)}</b>
+                </li>
               ))}
             </ul>
           )}
@@ -413,7 +492,7 @@ export function PayoutJournalPage() {
             </thead>
             <tbody>
               {rows.map((p) => (
-                <tr key={p.id} className="border-b border-line dark:border-[#243041]">
+                  <tr key={p.id} className="cursor-pointer border-b border-line dark:border-[#243041]" onClick={() => setOpen("payout", { payoutId: p.id })}>
                   <td className="px-4 py-3">{p.requestDate}</td>
                   <td className="px-4 py-3">{p.firm}</td>
                   <td className="px-4 py-3">{p.accountName}</td>
@@ -423,7 +502,7 @@ export function PayoutJournalPage() {
                   <td className="px-4 py-3">{formatPnl(p.payout)}</td>
                   <td className="px-4 py-3">{p.status}</td>
                   <td className="px-4 py-3">{p.method}</td>
-                  <td className="px-4 py-3"><button className="text-loss" onClick={() => deletePayout(p.id)}><Trash2 size={14} /></button></td>
+                    <td className="px-4 py-3"><button className="text-loss" onClick={(e) => { e.stopPropagation(); deletePayout(p.id); }}><Trash2 size={14} /></button></td>
                 </tr>
               ))}
             </tbody>
@@ -463,9 +542,9 @@ export function AffiliatePage() {
         </div>
         <div className="mt-5 grid gap-3 sm:grid-cols-3">
           {[["Referrals", "0"], ["Pending", "$0"], ["Paid", "$0"]].map(([l, v]) => (
-            <div key={l} className="rounded-2xl bg-gradient-to-br from-teal-50 to-violet-50 p-4">
+            <div key={l} className="rounded-2xl bg-gradient-to-br from-teal-50 to-violet-50 p-4 dark:from-white/5 dark:to-white/0">
               <p className="text-xs text-ink-muted">{l}</p>
-              <p className="mt-2 text-xl font-semibold">{v}</p>
+              <p className="mt-2 text-xl font-semibold dark:text-white">{v}</p>
             </div>
           ))}
         </div>

@@ -27,14 +27,14 @@ export function LoginPage() {
         }}
       >
         <label className="block">
-          <span className="mb-1.5 block text-sm font-medium text-ink">Email *</span>
+          <span className="mb-1.5 block text-sm font-medium text-ink">Email <span className="text-loss">*</span></span>
           <div className="relative">
             <Mail size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-faint" />
             <input className="input pl-10" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
           </div>
         </label>
         <label className="block">
-          <span className="mb-1.5 block text-sm font-medium text-ink">Password *</span>
+          <span className="mb-1.5 block text-sm font-medium text-ink">Password <span className="text-loss">*</span></span>
           <div className="relative">
             <Lock size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-faint" />
             <input
@@ -114,11 +114,11 @@ export function SignupPage() {
           </div>
         </label>
         <label className="block">
-          <span className="mb-1.5 block text-sm font-medium text-ink">Email *</span>
+          <span className="mb-1.5 block text-sm font-medium text-ink">Email <span className="text-loss">*</span></span>
           <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
         </label>
         <label className="block">
-          <span className="mb-1.5 block text-sm font-medium text-ink">Password *</span>
+          <span className="mb-1.5 block text-sm font-medium text-ink">Password <span className="text-loss">*</span></span>
           <input className="input" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} />
         </label>
         {error ? <p className="text-sm text-loss">{error}</p> : null}
@@ -163,7 +163,7 @@ export function ForgotPage() {
         }}
       >
         <label className="block">
-          <span className="mb-1.5 block text-sm font-medium text-ink">Email *</span>
+          <span className="mb-1.5 block text-sm font-medium text-ink">Email <span className="text-loss">*</span></span>
           <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
         </label>
         {error ? <p className="text-sm text-loss">{error}</p> : null}
@@ -215,7 +215,7 @@ export function ResetPage() {
         }}
       >
         <label className="block">
-          <span className="mb-1.5 block text-sm font-medium text-ink">Email *</span>
+          <span className="mb-1.5 block text-sm font-medium text-ink">Email <span className="text-loss">*</span></span>
           <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
         </label>
         <label className="block">

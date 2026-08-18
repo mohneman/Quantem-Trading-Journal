@@ -253,7 +253,7 @@ function seedData(profile: Profile): StoreData {
         tags: ["Monday", "Trading", "Personal", "Excited"],
         gratitude: "",
         affirmation: "",
-        notes: "--- Account Plane ---",
+        notes: "Prep for the week: keep risk at 1% and only take A+ setups.",
         tasks: [],
         plans: [],
       },
@@ -325,14 +325,8 @@ function seedData(profile: Profile): StoreData {
   };
 }
 
-function loadUsers(): AuthUser[] {
-  try {
-    const raw = localStorage.getItem(USERS_KEY);
-    if (raw) return JSON.parse(raw) as AuthUser[];
-  } catch {
-    /* ignore */
-  }
-  const demo: AuthUser = {
+function demoUser(): AuthUser {
+  return {
     id: "u-demo",
     name: seedUser.name,
     email: seedUser.email,
@@ -340,16 +334,43 @@ function loadUsers(): AuthUser[] {
     password: "quantem",
     provider: "email",
   };
-  localStorage.setItem(USERS_KEY, JSON.stringify([demo]));
-  const data = seedData({
-    name: demo.name,
-    email: demo.email,
-    phone: demo.phone,
-    avatar: "",
-    initials: initialsOf(demo.name),
-  });
-  localStorage.setItem(dataKey(demo.id), JSON.stringify(data));
-  return [demo];
+}
+
+function persistDemoData(demo: AuthUser) {
+  if (localStorage.getItem(dataKey(demo.id))) return;
+  localStorage.setItem(
+    dataKey(demo.id),
+    JSON.stringify(
+      seedData({
+        name: demo.name,
+        email: demo.email,
+        phone: demo.phone,
+        avatar: "",
+        initials: initialsOf(demo.name),
+      })
+    )
+  );
+}
+
+function loadUsers(): AuthUser[] {
+  let users: AuthUser[] = [];
+  try {
+    const raw = localStorage.getItem(USERS_KEY);
+    if (raw) users = JSON.parse(raw) as AuthUser[];
+  } catch {
+    users = [];
+  }
+  const demo = demoUser();
+  if (!users.some((u) => u.email.toLowerCase() === demo.email.toLowerCase())) {
+    users = [demo, ...users];
+  } else {
+    users = users.map((u) =>
+      u.email.toLowerCase() === demo.email.toLowerCase() ? { ...u, password: "quantem", provider: "email" } : u
+    );
+  }
+  persistDemoData(users.find((u) => u.email.toLowerCase() === demo.email.toLowerCase()) ?? demo);
+  localStorage.setItem(USERS_KEY, JSON.stringify(users));
+  return users;
 }
 
 function loadSession(): Session | null {
@@ -420,6 +441,7 @@ type Ctx = {
   updatePayout: (id: string, patch: Partial<Payout>) => void;
   deletePayout: (id: string) => void;
   addBacktest: (b: Omit<Backtest, "id" | "no">) => void;
+  updateBacktest: (id: string, patch: Partial<Backtest>) => void;
   deleteBacktest: (id: string) => void;
   addSymbol: (s: string) => void;
   setTasks: (tasks: FocusTask[]) => void;
@@ -689,6 +711,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           const no = d.backtests.reduce((m, t) => Math.max(m, t.no), 0) + 1;
           return { ...d, backtests: [{ ...b, id: uid(), no }, ...d.backtests] };
         }),
+      updateBacktest: (id, patch) =>
+        patchData((d) => ({
+          ...d,
+          backtests: d.backtests.map((x) => (x.id === id ? { ...x, ...patch } : x)),
+        })),
       deleteBacktest: (id) =>
         patchData((d) => ({ ...d, backtests: d.backtests.filter((x) => x.id !== id) })),
       addSymbol: (s) =>

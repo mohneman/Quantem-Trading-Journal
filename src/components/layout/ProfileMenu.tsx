@@ -35,7 +35,12 @@ export function ProfileMenu() {
     <div ref={ref} className="relative border-t border-line px-3 py-3 dark:border-[#243041]">
       {open ? (
         <div className="absolute bottom-[72px] left-3 right-3 z-50 overflow-hidden rounded-2xl border border-line bg-white shadow-modal dark:border-[#243041] dark:bg-[#151a21]">
-          <button className="flex w-full items-center gap-2.5 bg-brand/10 px-3 py-2.5 text-left text-sm font-semibold text-brand">
+          <button className="flex w-full items-center gap-2.5 bg-brand/10 px-3 py-2.5 text-left text-sm font-semibold text-brand"
+            onClick={() => {
+              setModal("upgrade");
+              setOpen(false);
+            }}
+          >
             <Bolt size={16} /> Upgrade Plan
           </button>
           <button

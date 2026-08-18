@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Check, Plus } from "lucide-react";
+import { Check, Plus, Trash2 } from "lucide-react";
 import { Modal } from "../ui/Modal";
 import { Field, Input, Select, TextArea } from "../ui/Field";
 import { Button } from "../ui/Button";
@@ -19,9 +19,11 @@ const tags = ["Trading", "Personal", "Reflection", "Wins", "Lessons", "Strategy"
 export function NewDayModal({
   onClose,
   journalId,
+  initialDate,
 }: {
   onClose: () => void;
   journalId?: string;
+  initialDate?: string;
 }) {
   const { data, addJournal, updateJournal, deleteJournal } = useStore();
   const existing = data.journals.find((j) => j.id === journalId);
@@ -29,7 +31,7 @@ export function NewDayModal({
   const [mood, setMood] = useState(existing?.mood ?? "Excited");
   const [activeTags, setActiveTags] = useState(existing?.tags ?? ["Trading", "Personal"]);
   const [title, setTitle] = useState(existing?.title ?? "");
-  const [date, setDate] = useState(existing?.date ?? TODAY_ISO);
+  const [date, setDate] = useState(existing?.date ?? initialDate ?? TODAY_ISO);
   const [gratitude, setGratitude] = useState(existing?.gratitude ?? "");
   const [affirmation, setAffirmation] = useState(existing?.affirmation ?? "");
   const [notes, setNotes] = useState(existing?.notes ?? "");
@@ -111,7 +113,16 @@ export function NewDayModal({
                       <option key={a.id} value={a.id}>{a.name}</option>
                     ))}
                   </Select>
-                  <Input placeholder="Account balance detail" value={p.balance} onChange={(e) => setPlans((rows) => rows.map((r) => (r.id === p.id ? { ...r, balance: e.target.value } : r)))} />
+                  <div className="flex gap-2">
+                    <Input placeholder="Account balance detail" value={p.balance} onChange={(e) => setPlans((rows) => rows.map((r) => (r.id === p.id ? { ...r, balance: e.target.value } : r)))} />
+                    <button
+                      className="text-ink-faint hover:text-loss"
+                      onClick={() => setPlans((rows) => rows.filter((r) => r.id !== p.id))}
+                      aria-label="Remove plan"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
                 </div>
                 <div className="mt-2 grid grid-cols-3 gap-2">
                   <Field label="No. of Trades"><Input value={p.trades} onChange={(e) => setPlans((rows) => rows.map((r) => (r.id === p.id ? { ...r, trades: e.target.value } : r)))} /></Field>
@@ -142,7 +153,18 @@ export function NewDayModal({
             ) : (
               <ul className="mt-3 space-y-2">
                 {tasks.map((t) => (
-                  <li key={t.id} className="rounded-xl border border-line px-3 py-2 text-sm dark:border-[#243041]">{t.text}</li>
+                  <li key={t.id} className="flex items-center gap-2 rounded-xl border border-line px-3 py-2 text-sm dark:border-[#243041]">
+                    <input
+                      type="checkbox"
+                      className="accent-brand"
+                      checked={t.done}
+                      onChange={() => setTasks((rows) => rows.map((r) => (r.id === t.id ? { ...r, done: !r.done } : r)))}
+                    />
+                    <span className={t.done ? "flex-1 line-through text-ink-faint" : "flex-1"}>{t.text}</span>
+                    <button className="text-ink-faint hover:text-loss" onClick={() => setTasks((rows) => rows.filter((r) => r.id !== t.id))}>
+                      <Trash2 size={14} />
+                    </button>
+                  </li>
                 ))}
               </ul>
             )}

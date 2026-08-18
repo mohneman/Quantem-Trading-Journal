@@ -9,7 +9,7 @@ import { ProfileSettingsModal } from "../modals/ProfileSettingsModal";
 import { TradeViewModal } from "../modals/TradeViewModal";
 import { TradeOutcomeModal } from "../modals/TradeOutcomeModal";
 import { ChecklistSettingsModal } from "../modals/ChecklistSettingsModal";
-import { HelpModal } from "../modals/HelpModal";
+import { HelpModal, UpgradeModal } from "../modals/HelpModal";
 
 export function ModalProvider({ children }: { children: ReactNode }) {
   const [open, setOpenName] = useState<ModalName>(null);
@@ -36,13 +36,13 @@ export function ModalProvider({ children }: { children: ReactNode }) {
     <ModalContext.Provider value={value}>
       {children}
       {open === "account" || open === "propAccount" ? (
-        <NewAccountModal onClose={close} prop={open === "propAccount"} />
+        <NewAccountModal onClose={close} prop={open === "propAccount"} accountId={payload?.accountId} />
       ) : null}
-      {open === "backtest" ? <AddBacktestModal onClose={close} /> : null}
-      {open === "payout" ? <AddPayoutModal onClose={close} /> : null}
-      {open === "trade" ? <AddTradeModal onClose={close} /> : null}
+      {open === "backtest" ? <AddBacktestModal onClose={close} backtestId={payload?.backtestId} /> : null}
+      {open === "payout" ? <AddPayoutModal onClose={close} payoutId={payload?.payoutId} /> : null}
+      {open === "trade" ? <AddTradeModal onClose={close} tradeId={payload?.tradeId} /> : null}
       {open === "newDay" || open === "editDay" ? (
-        <NewDayModal onClose={close} journalId={payload?.journalId} />
+        <NewDayModal onClose={close} journalId={payload?.journalId} initialDate={payload?.date} />
       ) : null}
       {open === "profile" ? <ProfileSettingsModal onClose={close} /> : null}
       {open === "tradeView" && payload?.tradeId ? (
@@ -53,6 +53,7 @@ export function ModalProvider({ children }: { children: ReactNode }) {
       ) : null}
       {open === "checklist" ? <ChecklistSettingsModal onClose={close} /> : null}
       {open === "help" ? <HelpModal onClose={close} /> : null}
+      {open === "upgrade" ? <UpgradeModal onClose={close} /> : null}
     </ModalContext.Provider>
   );
 }

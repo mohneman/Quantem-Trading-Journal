@@ -133,7 +133,7 @@ export function TradesPage() {
 
 function Filter({ value, onChange, options }: { value: string; onChange: (v: string) => void; options: string[] }) {
   return (
-    <select className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium dark:bg-white/10" value={value} onChange={(e) => onChange(e.target.value)}>
+    <select className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-ink dark:bg-white/10 dark:text-slate-100" value={value} onChange={(e) => onChange(e.target.value)}>
       {options.map((o) => (
         <option key={o}>{o}</option>
       ))}

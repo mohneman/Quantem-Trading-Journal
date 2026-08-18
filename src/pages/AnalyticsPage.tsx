@@ -134,6 +134,7 @@ export function AnalyticsPage() {
       return a;
     }, {})
   ).map(([firm, v]) => ({ firm, v }));
+  const psychMax = Math.max(1, ...psych.map(([, s]) => s.n));
   const best = trades.reduce((m, t) => (t.pnl > m ? t.pnl : m), 0);
   const worst = trades.reduce((m, t) => (t.pnl < m ? t.pnl : m), 0);
 
@@ -158,22 +159,37 @@ export function AnalyticsPage() {
         </div>
 
         <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-          <Select value={account} onChange={(e) => setAccount(e.target.value)}>
-            <option>All Accounts</option>
-            {data.accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-          </Select>
-          <Select value={symbol} onChange={(e) => setSymbol(e.target.value)}>
-            <option>All Symbols</option>
-            {data.symbols.map((s) => <option key={s}>{s}</option>)}
-          </Select>
-          <Select value={session} onChange={(e) => setSession(e.target.value)}>
-            <option>All Sessions</option>
-            <option>London</option>
-            <option>New York</option>
-            <option>Asia</option>
-          </Select>
-          <input className="input" type="date" aria-label="Start Date" value={start} onChange={(e) => setStart(e.target.value)} />
-          <input className="input" type="date" aria-label="End Date" value={end} onChange={(e) => setEnd(e.target.value)} />
+          <label className="block">
+            <span className="label">Account</span>
+            <Select value={account} onChange={(e) => setAccount(e.target.value)}>
+              <option>All Accounts</option>
+              {data.accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+            </Select>
+          </label>
+          <label className="block">
+            <span className="label">Symbol</span>
+            <Select value={symbol} onChange={(e) => setSymbol(e.target.value)}>
+              <option>All Symbols</option>
+              {data.symbols.map((s) => <option key={s}>{s}</option>)}
+            </Select>
+          </label>
+          <label className="block">
+            <span className="label">Session</span>
+            <Select value={session} onChange={(e) => setSession(e.target.value)}>
+              <option>All Sessions</option>
+              <option>London</option>
+              <option>New York</option>
+              <option>Asia</option>
+            </Select>
+          </label>
+          <label className="block">
+            <span className="label">Start Date</span>
+            <input className="input" type="date" aria-label="Start Date" value={start} onChange={(e) => setStart(e.target.value)} />
+          </label>
+          <label className="block">
+            <span className="label">End Date</span>
+            <input className="input" type="date" aria-label="End Date" value={end} onChange={(e) => setEnd(e.target.value)} />
+          </label>
         </div>
 
         <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
@@ -198,15 +214,23 @@ export function AnalyticsPage() {
             </ResponsiveContainer>
           </ChartCard>
           <ChartCard title="Win/Loss Ratio" sub="Trade outcome distribution." tint="bg-white dark:bg-transparent">
-            <ResponsiveContainer width="100%" height={180}>
-              <PieChart>
-                <Pie data={pie} dataKey="value" innerRadius={48} outerRadius={72} paddingAngle={2}>
-                  {pie.map((p) => <Cell key={p.name} fill={p.fill} />)}
-                </Pie>
-              </PieChart>
-            </ResponsiveContainer>
+            <div className="relative">
+              <ResponsiveContainer width="100%" height={180}>
+                <PieChart>
+                  <Pie data={pie} dataKey="value" innerRadius={48} outerRadius={72} paddingAngle={2}>
+                    {pie.map((p) => <Cell key={p.name} fill={p.fill} />)}
+                  </Pie>
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="pointer-events-none absolute inset-0 grid place-items-center">
+                <p className="text-center text-sm font-semibold dark:text-white">
+                  {closed.length ? Math.round((wins / closed.length) * 100) : 0}%
+                  <span className="block text-[11px] font-normal text-ink-faint">Win Rate</span>
+                </p>
+              </div>
+            </div>
             <div className="mt-2 flex justify-center gap-4 text-xs text-ink-muted">
-              <span>Wins ({wins})</span><span>Losses ({losses})</span><span>B/E ({be})</span>
+              <span className="text-brand">Wins ({wins})</span><span className="text-loss">Losses ({losses})</span><span>B/E ({be})</span>
             </div>
           </ChartCard>
         </div>
@@ -223,7 +247,7 @@ export function AnalyticsPage() {
               </BarChart>
             </ResponsiveContainer>
           </ChartCard>
-          <ChartCard title="Top Symbols" sub="Most traded pairs" tint="bg-white dark:bg-transparent">
+          <ChartCard title="Top Symbols" sub="Performance by trading pair" tint="bg-white dark:bg-transparent">
             {symbols.length === 0 ? <p className="text-sm text-ink-faint">No symbols yet.</p> : symbols.map((s) => (
               <div key={s.symbol} className="mb-2 rounded-xl border border-line p-3 dark:border-[#243041]">
                 <p className="font-semibold text-brand">↗ {s.symbol}</p>
@@ -253,7 +277,9 @@ export function AnalyticsPage() {
           {psych.length === 0 ? <p className="text-sm text-ink-faint">No psychology tags yet.</p> : psych.map(([name, s]) => (
             <div key={name} className="mb-3 flex flex-wrap items-center gap-3">
               <span className="w-16 text-sm font-medium dark:text-white">{name}</span>
-              <div className="h-2.5 flex-1 rounded-full bg-brand" />
+              <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-slate-200 dark:bg-white/10">
+                <div className="h-full rounded-full bg-brand" style={{ width: `${Math.max(12, (s.n / psychMax) * 100)}%` }} />
+              </div>
               <span className="text-xs text-ink-muted">{s.n} trades · {s.n ? Math.round((s.wins / s.n) * 100) : 0}% WR · {formatPnl(s.pnl)}</span>
             </div>
           ))}
@@ -302,7 +328,7 @@ export function AnalyticsPage() {
               </div>
               <div className="rounded-xl bg-loss-soft p-3 text-center">
                 <p className="text-xs text-loss">Worst Trade</p>
-                <p className="mt-1 font-semibold text-loss">{formatPnl(worst || 0).replace("+", worst < 0 ? "" : "-")}</p>
+                <p className="mt-1 font-semibold text-loss">{worst < 0 ? formatPnl(worst) : "-$0.00"}</p>
               </div>
             </div>
           </div>
@@ -335,7 +361,7 @@ export function AnalyticsPage() {
                 <tr key={t.id} className="border-b border-line last:border-0 dark:border-[#243041]">
                   <td className="px-5 py-3 text-ink-muted">{t.date}</td>
                   <td className="px-5 py-3 font-medium dark:text-white">{t.symbol}</td>
-                  <td className="px-5 py-3"><Badge tone="buy">{t.direction || "—"}</Badge></td>
+                  <td className="px-5 py-3"><Badge tone={t.direction === "Sell" ? "sell" : "buy"}>{t.direction === "Sell" ? "↓ Sell" : t.direction ? "↑ Buy" : "—"}</Badge></td>
                   <td className="px-5 py-3 text-ink-muted">{t.session}</td>
                   <td className="px-5 py-3"><Badge tone="grade">{t.grade}</Badge></td>
                   <td className="px-5 py-3 font-medium text-brand">{t.rr}</td>

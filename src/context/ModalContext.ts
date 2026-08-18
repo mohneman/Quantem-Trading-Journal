@@ -13,12 +13,16 @@ export type ModalName =
   | "tradeOutcome"
   | "checklist"
   | "help"
+  | "upgrade"
   | null;
 
 export type ModalPayload = {
   tradeId?: string;
   journalId?: string;
   accountId?: string;
+  payoutId?: string;
+  backtestId?: string;
+  date?: string;
 };
 
 export type ModalContextValue = {

@@ -9,28 +9,34 @@ import { useStore, type AccountType } from "../../store";
 export function NewAccountModal({
   onClose,
   prop,
+  accountId,
 }: {
   onClose: () => void;
   prop?: boolean;
+  accountId?: string;
 }) {
-  const { addAccount } = useStore();
-  const [name, setName] = useState("");
-  const [type, setType] = useState<AccountType>(prop ? "Prop" : "Personal");
-  const [challenge, setChallenge] = useState("Phase 1");
-  const [website, setWebsite] = useState("");
-  const [split, setSplit] = useState("");
-  const [drawdown, setDrawdown] = useState("");
-  const [target, setTarget] = useState("");
-  const [status, setStatus] = useState("Phase 1");
-  const [balanceLabel, setBalanceLabel] = useState("$10,000");
-  const [balance, setBalance] = useState("10000");
+  const { data, addAccount, updateAccount } = useStore();
+  const existing = data.accounts.find((a) => a.id === accountId);
+  const [name, setName] = useState(existing?.name ?? "");
+  const [type, setType] = useState<AccountType>(existing?.type ?? (prop ? "Prop" : "Personal"));
+  const [challenge, setChallenge] = useState(existing?.challengeType || "Phase 1");
+  const [website, setWebsite] = useState(existing?.website ?? "");
+  const [split, setSplit] = useState(existing?.split ?? "");
+  const [drawdown, setDrawdown] = useState(existing?.drawdown ?? "");
+  const [target, setTarget] = useState(existing?.target ?? "");
+  const [status, setStatus] = useState(existing?.status || "Phase 1");
+  const [balanceLabel, setBalanceLabel] = useState(
+    existing ? startingBalances.find((b) => b.replace(/[$,]/g, "") === String(existing.balance)) ?? "" : "$10,000"
+  );
+  const [balance, setBalance] = useState(existing ? String(existing.balance) : "10000");
   const isProp = type === "Prop";
+  const editing = Boolean(existing);
 
   return (
-    <Modal title="New Trading Account" onClose={onClose}>
+    <Modal title={editing ? "Edit Trading Account" : "New Trading Account"} onClose={onClose}>
       <div className="mb-4 flex items-center gap-2 text-brand">
         <Wallet size={18} />
-        <span className="text-sm font-semibold">New Trading Account</span>
+        <span className="text-sm font-semibold">{editing ? "Edit Trading Account" : "New Trading Account"}</span>
       </div>
       <div className="space-y-4">
         <Field label="Account Name">
@@ -135,7 +141,7 @@ export function NewAccountModal({
           icon={<Plus size={16} />}
           onClick={() => {
             if (!name.trim()) return;
-            addAccount({
+            const payload = {
               name: name.trim(),
               type,
               challengeType: isProp ? challenge : "",
@@ -143,13 +149,15 @@ export function NewAccountModal({
               split,
               drawdown,
               target,
-              status: isProp ? status : "Active",
+              status: isProp ? status : existing?.status || "Active",
               balance: Number(balance) || 0,
-            });
+            };
+            if (existing) updateAccount(existing.id, payload);
+            else addAccount(payload);
             onClose();
           }}
         >
-          Create Account
+          {editing ? "Update Account" : "Create Account"}
         </Button>
       </div>
     </Modal>

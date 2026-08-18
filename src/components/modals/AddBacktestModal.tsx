@@ -5,33 +5,40 @@ import { Field, Input, Select, TextArea } from "../ui/Field";
 import { Button } from "../ui/Button";
 import { defaultChecklist, TODAY_ISO } from "../../data";
 import { useStore } from "../../store";
-import { useModal } from "../../context/ModalContext";
+import { ChecklistSettingsModal } from "./ChecklistSettingsModal";
 
-export function AddBacktestModal({ onClose }: { onClose: () => void }) {
-  const { data, addBacktest } = useStore();
-  const { setOpen } = useModal();
+export function AddBacktestModal({ onClose, backtestId }: { onClose: () => void; backtestId?: string }) {
+  const { data, addBacktest, updateBacktest } = useStore();
+  const existing = data.backtests.find((b) => b.id === backtestId);
+  const startItems = existing?.rules.map((r) => r.text) ?? defaultChecklist;
   const [checklistId, setChecklistId] = useState("default");
   const items =
-    checklistId === "default"
-      ? defaultChecklist
-      : data.checklists.find((c) => c.id === checklistId)?.items ?? defaultChecklist;
-  const [checked, setChecked] = useState(items.map(() => false));
-  const [result, setResult] = useState<"WIN" | "LOSS" | null>(null);
-  const [date, setDate] = useState(TODAY_ISO);
-  const [symbol, setSymbol] = useState("");
-  const [direction, setDirection] = useState("");
-  const [scenario, setScenario] = useState("");
-  const [sl, setSl] = useState("");
-  const [tp, setTp] = useState("");
-  const [notes, setNotes] = useState("");
-  const [chart5, setChart5] = useState("");
-  const [chart15, setChart15] = useState("");
+    existing && checklistId === "default"
+      ? startItems
+      : checklistId === "default"
+        ? defaultChecklist
+        : data.checklists.find((c) => c.id === checklistId)?.items ?? defaultChecklist;
+  const [checked, setChecked] = useState(existing?.rules.map((r) => r.checked) ?? items.map(() => false));
+  const [result, setResult] = useState<"WIN" | "LOSS" | null>(existing?.result ?? null);
+  const [date, setDate] = useState(existing?.date ?? TODAY_ISO);
+  const [symbol, setSymbol] = useState(existing?.symbol ?? "");
+  const [direction, setDirection] = useState(existing?.direction ?? "");
+  const [scenario, setScenario] = useState(existing?.scenario ?? "");
+  const [sl, setSl] = useState(existing?.slPips ?? "");
+  const [tp, setTp] = useState(existing?.tpPips ?? "");
+  const [notes, setNotes] = useState(existing?.notes ?? "");
+  const [chart5, setChart5] = useState(existing?.chart5 ?? "");
+  const [chart15, setChart15] = useState(existing?.chart15 ?? "");
+  const [applied5, setApplied5] = useState(existing?.chart5 ?? "");
+  const [applied15, setApplied15] = useState(existing?.chart15 ?? "");
+  const [showChecklist, setShowChecklist] = useState(false);
+  const [error, setError] = useState("");
   const done = checked.filter(Boolean).length;
-  const nextNo = data.backtests.reduce((m, t) => Math.max(m, t.no), 0) + 1;
+  const nextNo = existing?.no ?? data.backtests.reduce((m, t) => Math.max(m, t.no), 0) + 1;
 
   return (
     <Modal
-      title="Add Backtest Trade"
+      title={existing ? "Edit Backtest Trade" : "Add Backtest Trade"}
       subtitle="Diwaan geli backtest cusub — Win ama Loss kaliya ayaa lagu xisaabinayaa."
       onClose={onClose}
       wide
@@ -88,7 +95,7 @@ export function AddBacktestModal({ onClose }: { onClose: () => void }) {
                 {data.checklists.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
               </Select>
             </div>
-            <button className="btn-primary h-11 text-xs" onClick={() => setOpen("checklist")}>+ Create Custom Checklist</button>
+            <button className="btn-primary h-11 text-xs" onClick={() => setShowChecklist(true)}>+ Create Custom Checklist</button>
           </div>
           <ul className="space-y-2">
             {items.map((item, i) => (
@@ -110,8 +117,8 @@ export function AddBacktestModal({ onClose }: { onClose: () => void }) {
         <div>
           <p className="mb-3 font-semibold dark:text-white">Chart Snapshots</p>
           <div className="grid gap-3 sm:grid-cols-2">
-            <Snap label="5MIN CHART" color="bg-blue-500" value={chart5} onChange={setChart5} />
-            <Snap label="15MIN CHART" color="bg-brand" value={chart15} onChange={setChart15} />
+            <Snap label="5MIN CHART" color="bg-blue-500" value={chart5} onChange={setChart5} applied={applied5} onApply={() => setApplied5(chart5)} />
+            <Snap label="15MIN CHART" color="bg-brand" value={chart15} onChange={setChart15} applied={applied15} onApply={() => setApplied15(chart15)} />
           </div>
         </div>
 
@@ -138,8 +145,11 @@ export function AddBacktestModal({ onClose }: { onClose: () => void }) {
             className="flex-[1.2]"
             icon={<Check size={16} />}
             onClick={() => {
-              if (!result) return;
-              addBacktest({
+              if (!result) {
+                setError("Choose WIN or LOSS before saving.");
+                return;
+              }
+              const row = {
                 date,
                 symbol,
                 direction,
@@ -148,22 +158,30 @@ export function AddBacktestModal({ onClose }: { onClose: () => void }) {
                 tpPips: tp,
                 result,
                 notes,
-                rules: items.map((text, i) => ({ text, checked: checked[i] })),
-                chart5,
-                chart15,
-              });
+                rules: items.map((text, i) => ({ text, checked: Boolean(checked[i]) })),
+                chart5: applied5,
+                chart15: applied15,
+              };
+              if (existing) updateBacktest(existing.id, row);
+              else addBacktest(row);
               onClose();
             }}
           >
-            Save Backtest
+            {existing ? "Update Backtest" : "Save Backtest"}
           </Button>
         </div>
+        {error ? <p className="text-sm text-loss">{error}</p> : null}
       </div>
+      {showChecklist ? <ChecklistSettingsModal stacked onClose={() => setShowChecklist(false)} /> : null}
     </Modal>
   );
 }
 
-function Snap({ label, color, value, onChange }: { label: string; color: string; value: string; onChange: (v: string) => void }) {
+function Snap({
+  label, color, value, onChange, applied, onApply,
+}: {
+  label: string; color: string; value: string; onChange: (v: string) => void; applied: string; onApply: () => void;
+}) {
   return (
     <div className="rounded-xl border border-line p-3 dark:border-[#243041]">
       <p className="mb-2 flex items-center gap-2 text-xs font-semibold">
@@ -171,8 +189,9 @@ function Snap({ label, color, value, onChange }: { label: string; color: string;
       </p>
       <div className="flex gap-2">
         <Input placeholder="Paste image URL" value={value} onChange={(e) => onChange(e.target.value)} />
-        <button className="btn-primary h-11 px-3 text-xs" type="button">Apply</button>
+        <button className="btn-primary h-11 px-3 text-xs" type="button" onClick={onApply}>Apply</button>
       </div>
+      {applied ? <img src={applied} alt="" className="mt-2 max-h-28 rounded-lg" /> : null}
     </div>
   );
 }

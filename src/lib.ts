@@ -106,3 +106,32 @@ export function csvEscape(v: string | number) {
   const s = String(v ?? "");
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
+
+export function traderShare(split: string) {
+  const n = Number(String(split).split("/")[0]);
+  return Number.isFinite(n) && n > 0 ? n / 100 : 1;
+}
+
+export function stripHtml(html: string) {
+  return html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+}
+
+export function journalSnippet(notes: string) {
+  const cleaned = notes
+    .replace(/---\s*Account Plane[s]?\s*---/gi, "")
+    .replace(/\[\{[\s\S]*\}\]/g, "")
+    .trim();
+  return cleaned;
+}
+
+export function outcomeStreak(results: Array<"WIN" | "LOSS" | string>) {
+  if (!results.length) return "—";
+  const first = results[0];
+  if (first !== "WIN" && first !== "LOSS") return "—";
+  let n = 0;
+  for (const r of results) {
+    if (r !== first) break;
+    n += 1;
+  }
+  return `${n}${first === "WIN" ? "W" : "L"}`;
+}

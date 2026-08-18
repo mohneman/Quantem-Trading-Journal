@@ -2,18 +2,28 @@ import { useState } from "react";
 import { Modal } from "../ui/Modal";
 import { Field, Input } from "../ui/Field";
 import { Button } from "../ui/Button";
+import { defaultChecklist } from "../../data";
 import { useStore } from "../../store";
 
-export function ChecklistSettingsModal({ onClose }: { onClose: () => void }) {
-  const { data, addChecklist, deleteChecklist } = useStore();
+export function ChecklistSettingsModal({
+  onClose,
+  stacked,
+}: {
+  onClose: () => void;
+  stacked?: boolean;
+}) {
+  const { data, addChecklist, updateChecklist, deleteChecklist } = useStore();
   const [name, setName] = useState("");
-  const [items, setItems] = useState(["", "", "", "", ""]);
+  const [items, setItems] = useState([...defaultChecklist]);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   return (
-    <Modal title="Custom Checklist Settings" onClose={onClose} wide dark>
+    <Modal title="Custom Checklist Settings" onClose={onClose} wide dark stacked={stacked}>
       <div className="space-y-6">
         <div>
-          <p className="mb-3 text-sm font-semibold text-white">Create New Checklist</p>
+          <p className="mb-3 text-sm font-semibold text-white">
+            {editingId ? "Edit Checklist" : "Create New Checklist"}
+          </p>
           <Field label="Checklist Name">
             <Input
               className="border-white/10 bg-white/5 text-white placeholder:text-slate-500"
@@ -45,12 +55,18 @@ export function ChecklistSettingsModal({ onClose }: { onClose: () => void }) {
             onClick={() => {
               const clean = items.map((x) => x.trim()).filter(Boolean);
               if (!name.trim() || clean.length < 1) return;
-              addChecklist({ name: name.trim(), items: clean.length >= 5 ? clean.slice(0, 5) : [...clean, ...Array(5 - clean.length).fill("Rule")] });
+              const next = clean.length >= 5 ? clean.slice(0, 5) : [...clean, ...Array(5 - clean.length).fill("Rule")];
+              if (editingId) {
+                updateChecklist(editingId, { name: name.trim(), items: next });
+                setEditingId(null);
+              } else {
+                addChecklist({ name: name.trim(), items: next });
+              }
               setName("");
-              setItems(["", "", "", "", ""]);
+              setItems([...defaultChecklist]);
             }}
           >
-            Save Checklist
+            {editingId ? "Update Checklist" : "Save Checklist"}
           </Button>
         </div>
         <div>
@@ -67,9 +83,25 @@ export function ChecklistSettingsModal({ onClose }: { onClose: () => void }) {
                     <p className="text-sm font-medium text-white">{c.name}</p>
                     <p className="text-xs text-slate-400">{c.items.length} rules</p>
                   </div>
-                  <button className="text-xs text-red-300" onClick={() => deleteChecklist(c.id)}>
-                    Delete
-                  </button>
+                  <div className="flex gap-3">
+                    <button
+                      className="text-xs text-brand"
+                      onClick={() => {
+                        setEditingId(c.id);
+                        setName(c.name);
+                        setItems(
+                          c.items.length >= 5
+                            ? c.items.slice(0, 5)
+                            : [...c.items, ...Array(5 - c.items.length).fill("")]
+                        );
+                      }}
+                    >
+                      Edit
+                    </button>
+                    <button className="text-xs text-red-300" onClick={() => deleteChecklist(c.id)}>
+                      Delete
+                    </button>
+                  </div>
                 </li>
               ))}
             </ul>

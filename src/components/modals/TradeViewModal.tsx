@@ -50,7 +50,7 @@ export function TradeViewModal({ onClose, tradeId }: { onClose: () => void; trad
       <div className="mt-5 flex items-center justify-between">
         <Button variant="danger" icon={<Trash2 size={16} />} onClick={() => { deleteTrade(t.id); onClose(); }}>Delete Trade</Button>
         <div className="flex gap-2">
-          <Button variant="ghost" icon={<Pencil size={16} />} onClick={() => setOpen("tradeOutcome", { tradeId: t.id })}>Edit</Button>
+          <Button variant="ghost" icon={<Pencil size={16} />} onClick={() => setOpen("trade", { tradeId: t.id })}>Edit</Button>
           <Button variant="ghost" icon={<X size={16} />} onClick={onClose}>Close</Button>
         </div>
       </div>
@@ -76,6 +76,7 @@ function OutcomeForm({
 }) {
   const [out, setOut] = useState(t.outcome === "OPEN" ? "LOSS" : t.outcome);
   const [after, setAfter] = useState(t.afterUrl);
+  const [applied, setApplied] = useState(t.afterUrl);
   const [notes, setNotes] = useState(t.notes);
   const [pnl, setPnl] = useState(String(t.pnl));
 
@@ -105,8 +106,9 @@ function OutcomeForm({
       <p className="mb-2 mt-5 font-semibold dark:text-white">After Screenshot (Proof)</p>
       <div className="flex gap-2">
         <input className="input" placeholder="Paste direct image link" value={after} onChange={(e) => setAfter(e.target.value)} />
-        <button className="btn-primary" type="button">Apply</button>
+        <button className="btn-primary" type="button" onClick={() => setApplied(after)}>Apply</button>
       </div>
+      {applied ? <img src={applied} alt="After" className="mt-2 max-h-40 rounded-xl" /> : null}
       <p className="mt-5 font-semibold text-loss">Trade Notes & Lessons</p>
       <textarea className="input mt-2 min-h-[88px]" value={notes} onChange={(e) => setNotes(e.target.value)} />
       <div className="mt-5 flex justify-end gap-2">
@@ -114,7 +116,7 @@ function OutcomeForm({
         <Button
           variant="primary"
           onClick={() => {
-            updateTrade(t.id, { outcome: out as Trade["outcome"], afterUrl: after, notes, pnl: Number(pnl) || 0 });
+            updateTrade(t.id, { outcome: out as Trade["outcome"], afterUrl: applied, notes, pnl: Number(pnl) || 0 });
             onClose();
           }}
         >

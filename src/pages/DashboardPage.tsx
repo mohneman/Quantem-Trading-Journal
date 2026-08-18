@@ -21,15 +21,17 @@ import {
 } from "recharts";
 import { PageHeader } from "../components/layout/PageHeader";
 import { useMenu } from "../hooks";
-import { formatPnl, parseRr, weekdayShort } from "../lib";
+import { formatPnl, journalSnippet, parseRr, weekdayShort } from "../lib";
 import { TODAY_ISO } from "../data";
 import { useStore, type Trade } from "../store";
+import { useModal } from "../context/ModalContext";
 
 const ranges = ["30 days", "60 days", "90 days", "All"] as const;
 
 export function DashboardPage() {
   const onMenu = useMenu();
   const { data, firstName } = useStore();
+  const { setOpen } = useModal();
   const [range, setRange] = useState<(typeof ranges)[number]>("30 days");
   const [month, setMonth] = useState({ y: 2026, m: 7 });
   const [selected, setSelected] = useState("2026-08-17");
@@ -49,6 +51,7 @@ export function DashboardPage() {
   const weekRows = useMemo(() => weeksOfMonth(month.y, month.m, data.trades), [month, data.trades]);
   const dayTrades = data.trades.filter((t) => t.date === selected);
   const dayPnl = dayTrades.reduce((s, t) => s + t.pnl, 0);
+  const dayJournal = data.journals.find((j) => j.date === selected);
 
   const equity = cumulative(trades);
   const dow = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => ({
@@ -154,7 +157,11 @@ export function DashboardPage() {
               ) : (
                 <ul className="mt-3 space-y-2">
                   {dayTrades.map((t) => (
-                    <li key={t.id} className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2 text-sm dark:bg-white/5">
+                    <li
+                      key={t.id}
+                      className="flex cursor-pointer items-center justify-between rounded-xl bg-slate-50 px-3 py-2 text-sm dark:bg-white/5"
+                      onClick={() => setOpen("tradeView", { tradeId: t.id })}
+                    >
                       <span className={t.outcome === "WIN" ? "text-brand" : "text-loss"}>
                         {t.outcome === "WIN" ? "Win Trade" : t.outcome === "LOSS" ? "Loss Trade" : t.outcome}
                       </span>
@@ -170,7 +177,16 @@ export function DashboardPage() {
             </div>
             <div className="min-h-[140px] rounded-2xl border border-dashed border-line bg-slate-50/70 p-4 dark:border-[#243041] dark:bg-white/5">
               <h3 className="text-sm font-semibold dark:text-white">Session Notes</h3>
-              <p className="mt-2 text-sm text-ink-faint">Empty widget — pin a note or journal snippet for the selected day.</p>
+              {dayJournal ? (
+                <button className="mt-2 w-full text-left text-sm text-ink-muted" onClick={() => setOpen("editDay", { journalId: dayJournal.id })}>
+                  <p className="font-medium capitalize dark:text-white">{dayJournal.title}</p>
+                  <p className="mt-1 line-clamp-4 text-ink-faint">
+                    {journalSnippet(dayJournal.notes) || dayJournal.gratitude || dayJournal.affirmation || "Open this day’s journal."}
+                  </p>
+                </button>
+              ) : (
+                <p className="mt-2 text-sm text-ink-faint">Empty widget — pin a note or journal snippet for the selected day.</p>
+              )}
             </div>
           </div>
         </div>
@@ -299,13 +315,21 @@ function MonthCalendar({
           const pnl = dayTrades.reduce((s, t) => s + t.pnl, 0);
           const isToday = iso === TODAY_ISO;
           const isSel = iso === selected;
+          const wins = dayTrades.filter((t) => t.outcome === "WIN").length;
+          const losses = dayTrades.filter((t) => t.outcome === "LOSS").length;
+          const tint =
+            isSel
+              ? "border-violet-300 bg-violet-50 dark:border-violet-500/40 dark:bg-violet-500/15"
+              : wins && !losses
+                ? "border-emerald-200 bg-emerald-50/80 dark:border-emerald-500/30 dark:bg-emerald-500/10"
+                : losses && !wins
+                  ? "border-red-200 bg-red-50/80 dark:border-red-500/30 dark:bg-red-500/10"
+                  : "border-line dark:border-[#243041]";
           return (
             <button
               key={i}
               onClick={() => onSelect(iso)}
-              className={`min-h-[72px] rounded-xl border p-1.5 text-left transition hover:shadow-soft ${
-                isSel ? "border-violet-300 bg-violet-50 dark:border-violet-500/40 dark:bg-violet-500/15" : "border-line dark:border-[#243041]"
-              }`}
+              className={`min-h-[72px] rounded-xl border p-1.5 text-left transition hover:shadow-soft ${tint}`}
             >
               <span className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs ${isToday ? "bg-sky-500 font-semibold text-white" : "text-ink-muted"}`}>
                 {day}

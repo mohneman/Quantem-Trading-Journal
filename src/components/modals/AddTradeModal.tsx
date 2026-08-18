@@ -11,6 +11,7 @@ import {
   TrendingDown,
   Wallet,
   X,
+  Zap,
 } from "lucide-react";
 import { Modal } from "../ui/Modal";
 import { Field, Input, Select, TextArea } from "../ui/Field";
@@ -18,48 +19,55 @@ import { Button } from "../ui/Button";
 import { defaultChecklist, psychologyTags, TODAY_ISO } from "../../data";
 import { useStore } from "../../store";
 import { useModal } from "../../context/ModalContext";
-import { rrFromPips } from "../../lib";
+import { gradeFromChecked, rrFromPips } from "../../lib";
+import { ChecklistSettingsModal } from "./ChecklistSettingsModal";
 
-export function AddTradeModal({ onClose }: { onClose: () => void }) {
-  const { data, addTrade, addSymbol } = useStore();
+export function AddTradeModal({ onClose, tradeId }: { onClose: () => void; tradeId?: string }) {
+  const { data, addTrade, updateTrade, addSymbol } = useStore();
   const { setOpen } = useModal();
-  const [tags, setTags] = useState<string[]>([]);
+  const existing = data.trades.find((t) => t.id === tradeId);
+  const startItems = existing?.rules.map((r) => r.text) ?? defaultChecklist;
+  const [tags, setTags] = useState<string[]>(existing?.psychology ?? []);
   const [checklistId, setChecklistId] = useState("default");
   const items =
-    checklistId === "default"
-      ? defaultChecklist
-      : data.checklists.find((c) => c.id === checklistId)?.items ?? defaultChecklist;
-  const [rules, setRules] = useState(items.map(() => false));
-  const [direction, setDirection] = useState("");
-  const [session, setSession] = useState("");
-  const [pair, setPair] = useState("");
-  const [date, setDate] = useState(TODAY_ISO);
-  const [risk, setRisk] = useState("");
-  const [sl, setSl] = useState("");
-  const [tp, setTp] = useState("");
-  const [notes, setNotes] = useState("");
-  const [proof, setProof] = useState("");
-  const [applied, setApplied] = useState("");
-  const [accounts, setAccounts] = useState<string[]>([]);
+    existing && checklistId === "default" && !data.checklists.length
+      ? startItems
+      : checklistId === "default"
+        ? defaultChecklist
+        : data.checklists.find((c) => c.id === checklistId)?.items ?? defaultChecklist;
+  const [rules, setRules] = useState(existing?.rules.map((r) => r.checked) ?? items.map(() => false));
+  const [direction, setDirection] = useState<"" | "Buy" | "Sell">(existing?.direction ?? "");
+  const [session, setSession] = useState(existing?.session ?? "");
+  const [pair, setPair] = useState(existing?.symbol ?? "");
+  const [date, setDate] = useState(existing?.date ?? TODAY_ISO);
+  const [risk, setRisk] = useState(existing?.risk.replace("%", "") ?? "");
+  const [sl, setSl] = useState(existing?.slPips ?? "");
+  const [tp, setTp] = useState(existing?.tpPips ?? "");
+  const [notes, setNotes] = useState(existing?.notes ?? "");
+  const [proof, setProof] = useState(existing?.proofUrl ?? "");
+  const [applied, setApplied] = useState(existing?.proofUrl ?? "");
+  const [accounts, setAccounts] = useState<string[]>(existing?.accountIds ?? []);
   const [newPair, setNewPair] = useState("");
   const [showPair, setShowPair] = useState(false);
+  const [showChecklist, setShowChecklist] = useState(false);
+  const [error, setError] = useState("");
 
   const checked = rules.filter(Boolean).length;
-  const missing = rules.length - checked;
-  const grade = checked === rules.length && rules.length ? "A+" : checked >= 3 ? "C" : "F";
-  const nextNo = data.trades.reduce((m, t) => Math.max(m, t.no), 0) + 1;
-  const pct = rules.length ? (checked / rules.length) * 100 : 0;
+  const missing = Math.max(0, items.length - checked);
+  const grade = gradeFromChecked(checked, items.length);
+  const nextNo = existing?.no ?? data.trades.reduce((m, t) => Math.max(m, t.no), 0) + 1;
+  const pct = items.length ? (checked / items.length) * 100 : 0;
 
   const summary = useMemo(
     () => [
       { label: "DIRECTION", value: direction || "None", kind: direction ? "ok" : "miss" },
       { label: "SESSION", value: session || "None", kind: session ? "ok" : "miss" },
       { label: "PAIR", value: pair || "None", kind: pair ? "ok" : "miss" },
-      { label: "TOTAL RULES", value: String(rules.length), kind: "ok" },
+      { label: "TOTAL RULES", value: String(items.length), kind: "ok" },
       { label: "CHECKED", value: String(checked), kind: "good" },
       { label: "MISSING", value: String(missing), kind: "bad" },
     ],
-    [direction, session, pair, rules.length, checked, missing]
+    [direction, session, pair, items.length, checked, missing]
   );
 
   function applyChecklist(id: string) {
@@ -69,8 +77,48 @@ export function AddTradeModal({ onClose }: { onClose: () => void }) {
     setRules(next.map(() => false));
   }
 
+  function save(take: boolean) {
+    if (!pair || !direction || !session) {
+      setError("Select direction, session, and pair before taking the trade.");
+      return;
+    }
+    const payload = {
+      date,
+      symbol: pair,
+      direction: direction || "",
+      session,
+      slPips: sl,
+      tpPips: tp,
+      risk: risk ? `${Number(risk).toFixed(2)}%` : "",
+      psychology: tags,
+      checklistName:
+        checklistId === "default"
+          ? "Default Checklist"
+          : data.checklists.find((c) => c.id === checklistId)?.name ?? "Default",
+      rules: items.map((text, i) => ({ text, checked: Boolean(rules[i]) })),
+      notes,
+      proofUrl: applied,
+      accountIds: accounts,
+      rr: rrFromPips(sl, tp),
+      grade,
+    };
+    if (existing) {
+      updateTrade(existing.id, payload);
+      onClose();
+      return;
+    }
+    const created = addTrade({
+      ...payload,
+      outcome: "OPEN",
+      pnl: 0,
+      afterUrl: "",
+    });
+    if (take) setOpen("tradeOutcome", { tradeId: created.id });
+    else onClose();
+  }
+
   return (
-    <Modal title="Add Trade" onClose={onClose} wide>
+    <Modal title={existing ? "Edit Trade" : "Add Trade"} onClose={onClose} wide>
       <div className="space-y-6">
         <div>
           <p className="section-title mb-3">Trade Details</p>
@@ -118,7 +166,7 @@ export function AddTradeModal({ onClose }: { onClose: () => void }) {
               ) : null}
             </Field>
             <Field label="Direction">
-              <Select value={direction} onChange={(e) => setDirection(e.target.value)}>
+              <Select value={direction} onChange={(e) => setDirection(e.target.value as "" | "Buy" | "Sell")}>
                 <option value="">Select...</option>
                 <option>Buy</option>
                 <option>Sell</option>
@@ -133,7 +181,7 @@ export function AddTradeModal({ onClose }: { onClose: () => void }) {
         <div className="rounded-2xl bg-slate-50 p-4 dark:bg-white/5">
           <div className="mb-2 flex justify-between">
             <p className="font-semibold dark:text-white">Confirmation Checklist</p>
-            <span className="font-semibold text-brand">{checked}/{rules.length}</span>
+            <span className="font-semibold text-brand">{checked}/{items.length}</span>
           </div>
           <div className="mb-3 h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-white/10">
             <div className="h-full rounded-full bg-brand transition-all" style={{ width: `${pct}%` }} />
@@ -148,7 +196,7 @@ export function AddTradeModal({ onClose }: { onClose: () => void }) {
                 ))}
               </Select>
             </div>
-            <button className="btn-primary mt-5 h-11 text-xs" onClick={() => setOpen("checklist")}>
+            <button className="btn-primary mt-5 h-11 text-xs" onClick={() => setShowChecklist(true)}>
               + Create Custom Checklist
             </button>
           </div>
@@ -157,7 +205,11 @@ export function AddTradeModal({ onClose }: { onClose: () => void }) {
               <li key={`${checklistId}-${item}-${i}`}>
                 <button
                   type="button"
-                  onClick={() => setRules((p) => p.map((v, idx) => (idx === i ? !v : v)))}
+                  onClick={() => setRules((p) => {
+                    const next = [...p];
+                    next[i] = !next[i];
+                    return next;
+                  })}
                   className={`flex w-full items-start gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition ${
                     rules[i] ? "bg-brand/10 text-ink dark:text-white" : "bg-white dark:bg-[#151a21]"
                   }`}
@@ -204,7 +256,7 @@ export function AddTradeModal({ onClose }: { onClose: () => void }) {
             </div>
             <button className="btn-primary" onClick={() => setApplied(proof)}>Apply</button>
           </div>
-          <p className="mt-1 text-[11px] text-ink-faint">Copy image address from Imgur or similar, then Apply.</p>
+          <p className="mt-1 text-[11px] text-ink-faint">Copy image address from Imgur or similar (.png, .jpg, .gif, .webp), then Apply.</p>
           {applied ? <img src={applied} alt="Proof" className="mt-2 max-h-40 rounded-xl" /> : null}
         </div>
 
@@ -238,8 +290,8 @@ export function AddTradeModal({ onClose }: { onClose: () => void }) {
             <p className="flex items-center gap-2 font-semibold dark:text-white">
               <AlertCircle size={16} className="text-loss" /> Trade Summary
             </p>
-            <span className={`grid h-7 w-7 place-items-center rounded-full text-xs font-bold ${grade === "A+" ? "bg-brand text-white" : "bg-amber-200 text-amber-800"}`}>
-              {grade[0]}
+            <span className={`grid h-7 w-7 place-items-center rounded-full text-xs font-bold ${grade === "A+" || grade === "A" ? "bg-brand text-white" : "bg-amber-200 text-amber-800"}`}>
+              {grade.replace("+", "")}
             </span>
           </div>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -267,38 +319,20 @@ export function AddTradeModal({ onClose }: { onClose: () => void }) {
           </div>
         </div>
         <Field label="Notes"><TextArea placeholder="Why this trade?" value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
-        <div className="grid grid-cols-2 gap-3">
-          <Button
-            variant="primary"
-            icon={<Check size={16} />}
-            onClick={() => {
-              const created = addTrade({
-                date,
-                symbol: pair,
-                direction: (direction as "Buy" | "Sell" | "") || "",
-                session,
-                slPips: sl,
-                tpPips: tp,
-                risk: risk ? `${Number(risk).toFixed(2)}%` : "",
-                outcome: "OPEN",
-                pnl: 0,
-                psychology: tags,
-                checklistName: checklistId === "default" ? "Default Checklist" : data.checklists.find((c) => c.id === checklistId)?.name ?? "Default",
-                rules: items.map((text, i) => ({ text, checked: rules[i] })),
-                notes,
-                proofUrl: applied,
-                afterUrl: "",
-                accountIds: accounts,
-                rr: rrFromPips(sl, tp),
-              });
-              setOpen("tradeOutcome", { tradeId: created.id });
-            }}
-          >
-            TAKE TRADE
-          </Button>
-          <Button variant="danger-outline" onClick={onClose} icon={<X size={16} />}>Cancel Trade</Button>
+        {error ? <p className="text-sm text-loss">{error}</p> : null}
+        <div className="rounded-2xl border border-line p-4 dark:border-[#243041]">
+          <p className="mb-3 flex items-center gap-2 font-semibold text-loss">
+            <Zap size={16} /> Trade Decision
+          </p>
+          <div className="grid grid-cols-2 gap-3">
+            <Button variant="primary" icon={<Check size={16} />} onClick={() => save(true)}>
+              {existing ? "SAVE TRADE" : "TAKE TRADE"}
+            </Button>
+            <Button variant="danger-outline" onClick={onClose} icon={<X size={16} />}>Cancel Trade</Button>
+          </div>
         </div>
       </div>
+      {showChecklist ? <ChecklistSettingsModal stacked onClose={() => setShowChecklist(false)} /> : null}
     </Modal>
   );
 }

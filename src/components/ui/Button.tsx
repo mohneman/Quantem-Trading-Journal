@@ -13,7 +13,7 @@ const variants: Record<Variant, string> = {
   ghost: "btn-ghost",
   danger: "btn bg-loss text-white hover:bg-red-600",
   "danger-outline":
-    "btn border border-loss/40 bg-white text-loss hover:bg-loss-soft",
+    "btn border border-loss/40 bg-white text-loss hover:bg-loss-soft dark:bg-transparent dark:hover:bg-loss/10",
 };
 
 export function Button({

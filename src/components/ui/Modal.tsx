@@ -9,11 +9,12 @@ type Props = {
   wide?: boolean;
   xl?: boolean;
   dark?: boolean;
+  stacked?: boolean;
 };
 
-export function Modal({ title, subtitle, children, onClose, wide, xl, dark }: Props) {
+export function Modal({ title, subtitle, children, onClose, wide, xl, dark, stacked }: Props) {
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/55 p-4 py-8 sm:p-8">
+    <div className={`fixed inset-0 flex items-start justify-center overflow-y-auto bg-slate-900/55 p-4 py-8 sm:p-8 ${stacked ? "z-[70]" : "z-50"}`}>
       <button
         aria-label="Close overlay"
         className="absolute inset-0 cursor-default"

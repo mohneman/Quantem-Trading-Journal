@@ -5,6 +5,7 @@ import {
   AlignRight,
   ArrowLeft,
   Bold,
+  Eraser,
   Download,
   Focus,
   Fullscreen,
@@ -31,10 +32,10 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { PageHeader } from "../components/layout/PageHeader";
 import { useMenu } from "../hooks";
 import { useStore, type MindNode } from "../store";
-import { uid } from "../lib";
+import { monthDay, stripHtml, uid } from "../lib";
 
-const NOTE_COLORS = ["#00D1C1", "#22C55E", "#3B82F6", "#8B5CF6", "#F97316", "#EAB308"];
-const MAP_COLORS = ["#00D1C1", "#38BDF8", "#3B82F6", "#8B5CF6", "#EC4899", "#F97316"];
+const NOTE_COLORS = ["#22C55E", "#00D1C1", "#3B82F6", "#8B5CF6", "#F97316", "#EAB308"];
+const MAP_COLORS = ["#22C55E", "#00D1C1", "#38BDF8", "#8B5CF6", "#EC4899", "#EAB308", "#94A3B8"];
 
 function ago(iso: string) {
   const ms = Date.now() - new Date(iso).getTime();
@@ -128,6 +129,7 @@ export function NotesEditorPage() {
                 TRADING NOTEBOOK
               </span>
               <h2 className="mt-1 text-2xl font-semibold dark:text-white">Notebook</h2>
+              <p className="text-xs text-ink-muted">{data.notes.length} notes · {data.notes.filter((n) => n.pinned).length} pinned</p>
             </div>
           </div>
           <button
@@ -155,6 +157,7 @@ export function NotesEditorPage() {
                     {n.pinned ? <Pin size={12} className="text-brand" /> : null}
                     {n.title}
                   </p>
+                  <p className="mt-0.5 truncate text-xs text-ink-muted">{stripHtml(n.html) || "Empty note.."}</p>
                   <p className="mt-1 text-xs text-ink-faint">{ago(n.updatedAt)}</p>
                 </button>
               ))}
@@ -196,6 +199,7 @@ export function NotesEditorPage() {
                     }}
                   />
                 ))}
+                <span className="ml-auto text-xs text-ink-faint">{monthDay(active.updatedAt.slice(0, 10))}</span>
               </div>
               <div className="mb-3 flex flex-wrap gap-1 rounded-xl bg-slate-50 px-2 py-2 text-ink-muted dark:bg-white/5">
                 <Tbtn onClick={() => document.execCommand("formatBlock", false, "h1")}><Heading1 size={14} /></Tbtn>
@@ -227,6 +231,9 @@ export function NotesEditorPage() {
                 >
                   <ImageIcon size={14} />
                 </Tbtn>
+                <Tbtn onClick={() => document.execCommand("removeFormat")}>
+                  <Eraser size={14} />
+                </Tbtn>
               </div>
               <div
                 ref={editor}
@@ -256,7 +263,7 @@ function Tbtn({ children, onClick }: { children: React.ReactNode; onClick: () =>
 export function MindMapsPage() {
   const onMenu = useMenu();
   const navigate = useNavigate();
-  const { data, addMap, deleteMap } = useStore();
+  const { data, addMap, deleteMap, updateMap } = useStore();
   const maps = [...data.maps].sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.updatedAt.localeCompare(a.updatedAt));
 
   return (
@@ -300,15 +307,26 @@ export function MindMapsPage() {
               <button key={m.id} onClick={() => navigate(`/notebook/maps/${m.id}`)} className="card w-full p-4 text-left">
                 <div className="flex items-start justify-between">
                   <span className="h-2 w-2 rounded-full" style={{ background: m.color }} />
-                  <span
-                    className="text-ink-faint hover:text-loss"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      deleteMap(m.id);
-                    }}
-                  >
-                    <Trash2 size={14} />
-                  </span>
+                  <div className="flex gap-2">
+                    <span
+                      className={m.pinned ? "text-brand" : "text-ink-faint"}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        updateMap(m.id, { pinned: !m.pinned });
+                      }}
+                    >
+                      <Pin size={14} />
+                    </span>
+                    <span
+                      className="text-ink-faint hover:text-loss"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteMap(m.id);
+                      }}
+                    >
+                      <Trash2 size={14} />
+                    </span>
+                  </div>
                 </div>
                 <p className="mt-6 font-semibold dark:text-white">{m.title}</p>
                 <p className="text-sm text-ink-muted">{m.nodes.length} nodes</p>
@@ -404,20 +422,20 @@ export function MindMapCanvasPage() {
             />
           </div>
           <div className="flex flex-wrap items-center gap-1 rounded-full border border-line bg-white px-2 py-1 text-xs dark:border-[#243041] dark:bg-[#151a21]">
-            <button className="rounded-full px-2 py-1 hover:bg-slate-50" onClick={() => addChild("topic")}>+ Topic</button>
-            <button className="rounded-full px-2 py-1 hover:bg-slate-50" onClick={() => addChild("note")}>Note</button>
-            <button className="rounded-full px-2 py-1 hover:bg-slate-50" onClick={() => addChild("image")}>Image</button>
-            <button className="rounded-lg p-1" onClick={() => { const prev = history.at(-1); if (!prev) return; setFuture((f) => [map.nodes, ...f]); setHistory((h) => h.slice(0, -1)); updateMap(map.id, { nodes: prev }); }}><Undo2 size={14} /></button>
-            <button className="rounded-lg p-1" onClick={() => { const next = future[0]; if (!next) return; setHistory((h) => [...h, map.nodes]); setFuture((f) => f.slice(1)); updateMap(map.id, { nodes: next }); }}><Redo2 size={14} /></button>
-            <button className="rounded-lg p-1" onClick={() => {
+            <button className="rounded-full px-2 py-1 hover:bg-slate-50 dark:hover:bg-white/10" onClick={() => addChild("topic")}>+ Topic</button>
+            <button className="rounded-full px-2 py-1 hover:bg-slate-50 dark:hover:bg-white/10" onClick={() => addChild("note")}>Note</button>
+            <button className="rounded-full px-2 py-1 hover:bg-slate-50 dark:hover:bg-white/10" onClick={() => addChild("image")}>Image</button>
+            <button className="rounded-lg p-1 hover:bg-slate-50 dark:hover:bg-white/10" onClick={() => { const prev = history.at(-1); if (!prev) return; setFuture((f) => [map.nodes, ...f]); setHistory((h) => h.slice(0, -1)); updateMap(map.id, { nodes: prev }); }}><Undo2 size={14} /></button>
+            <button className="rounded-lg p-1 hover:bg-slate-50 dark:hover:bg-white/10" onClick={() => { const next = future[0]; if (!next) return; setHistory((h) => [...h, map.nodes]); setFuture((f) => f.slice(1)); updateMap(map.id, { nodes: next }); }}><Redo2 size={14} /></button>
+            <button className="rounded-lg p-1 hover:bg-slate-50 dark:hover:bg-white/10" onClick={() => {
               const xs = map.nodes.map((n) => n.x);
               const min = Math.min(...xs);
               commit(map.nodes.map((n) => ({ ...n, x: n.parentId ? n.x : min })));
             }}><AlignLeft size={14} /></button>
-            <button className="rounded-lg p-1" onClick={() => setGrid((g) => !g)}><Grid3x3 size={14} /></button>
-            <button className="rounded-lg p-1" onClick={() => setFocusMode((f) => !f)}><Focus size={14} /></button>
-            <button className="rounded-lg p-1" onClick={() => void document.documentElement.requestFullscreen?.()}><Fullscreen size={14} /></button>
-            <button className="rounded-full px-2 py-1 hover:bg-slate-50" onClick={exportMap}><Download size={12} className="inline" /> Export</button>
+            <button className="rounded-lg p-1 hover:bg-slate-50 dark:hover:bg-white/10" onClick={() => setGrid((g) => !g)}><Grid3x3 size={14} /></button>
+            <button className="rounded-lg p-1 hover:bg-slate-50 dark:hover:bg-white/10" onClick={() => setFocusMode((f) => !f)}><Focus size={14} /></button>
+            <button className="rounded-lg p-1 hover:bg-slate-50 dark:hover:bg-white/10" onClick={() => void document.documentElement.requestFullscreen?.()}><Fullscreen size={14} /></button>
+            <button className="rounded-full px-2 py-1 hover:bg-slate-50 dark:hover:bg-white/10" onClick={exportMap}><Download size={12} className="inline" /> Export</button>
           </div>
           <div className="flex items-center gap-2">
             {MAP_COLORS.map((c) => (
@@ -484,12 +502,13 @@ export function MindMapCanvasPage() {
           {map.nodes.map((n) => (
             <div
               key={n.id}
-              className={`absolute cursor-grab rounded-2xl px-5 py-3 text-sm shadow-card ${n.parentId ? "border-l-4 bg-white dark:bg-[#151a21]" : "font-semibold text-white"}`}
+              className={`absolute cursor-grab rounded-2xl px-5 py-3 text-sm shadow-card ${n.parentId ? "border-l-4 border-r-4 bg-white dark:bg-[#151a21]" : "font-semibold text-white"}`}
               style={{
                 left: n.x,
                 top: n.y,
                 background: n.parentId ? undefined : n.color,
                 borderLeftColor: n.parentId ? n.color : undefined,
+                borderRightColor: n.parentId ? n.color : undefined,
                 minWidth: 160,
               }}
               onMouseDown={(e) => {
@@ -521,6 +540,24 @@ export function MindMapCanvasPage() {
           <div className="absolute bottom-4 left-4 flex gap-1" style={{ transform: `scale(${1 / map.zoom})` }}>
             <button className="rounded-lg border border-line bg-white px-2 py-1 text-sm dark:border-[#243041] dark:bg-[#151a21]" onClick={() => updateMap(map.id, { zoom: Math.min(1.6, map.zoom + 0.1) })}>+</button>
             <button className="rounded-lg border border-line bg-white px-2 py-1 text-sm dark:border-[#243041] dark:bg-[#151a21]" onClick={() => updateMap(map.id, { zoom: Math.max(0.6, map.zoom - 0.1) })}>−</button>
+          </div>
+          <div
+            className="absolute bottom-4 right-4 h-24 w-36 overflow-hidden rounded-xl border border-line bg-white/90 dark:border-[#243041] dark:bg-[#151a21]/90"
+            style={{ transform: `scale(${1 / map.zoom})` }}
+          >
+            {map.nodes.map((n) => (
+              <span
+                key={n.id}
+                className="absolute rounded-sm"
+                style={{
+                  left: Math.max(4, n.x / 12),
+                  top: Math.max(4, n.y / 12),
+                  width: n.parentId ? 18 : 22,
+                  height: 8,
+                  background: n.color,
+                }}
+              />
+            ))}
           </div>
         </div>
       </div>
