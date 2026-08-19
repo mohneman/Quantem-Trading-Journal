@@ -17,8 +17,11 @@ import {
   Menu,
   X,
   ChevronRight,
+  Settings,
 } from "lucide-react";
 import { ProfileMenu } from "./ProfileMenu";
+import { LogoLockup } from "../ui/Logo";
+import { useStore } from "../../store";
 
 const groups = [
   {
@@ -60,6 +63,11 @@ const groups = [
   },
 ];
 
+const adminGroup = {
+  label: "ADMIN",
+  items: [{ to: "/settings", label: "Settings", icon: Settings, end: false as const }],
+};
+
 type Props = {
   open: boolean;
   onClose: () => void;
@@ -67,6 +75,8 @@ type Props = {
 
 export function Sidebar({ open, onClose }: Props) {
   const { pathname } = useLocation();
+  const { isSuperAdmin } = useStore();
+  const navGroups = isSuperAdmin ? [...groups, adminGroup] : groups;
 
   return (
     <>
@@ -80,22 +90,14 @@ export function Sidebar({ open, onClose }: Props) {
         }`}
       >
         <div className="flex items-center justify-between px-5 py-5">
-          <div className="flex items-center gap-2.5">
-            <div className="relative h-8 w-8">
-              <span className="absolute left-0 top-1 h-5 w-5 rounded-full bg-brand/90" />
-              <span className="absolute right-0 top-2 h-5 w-5 rounded-full bg-purple-brand/90" />
-            </div>
-            <p className="text-[17px] font-semibold tracking-tight text-ink dark:text-white">
-              RyzeLog
-            </p>
-          </div>
+          <LogoLockup size={34} />
           <button className="rounded-lg p-1 text-ink-muted lg:hidden" onClick={onClose}>
             <X size={18} />
           </button>
         </div>
 
         <nav className="flex-1 overflow-y-auto px-3 pb-4">
-          {groups.map((group) => (
+          {navGroups.map((group) => (
             <div key={group.label || "main"} className="mb-3">
               {group.label ? (
                 <p className="px-3 pb-1.5 pt-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-ink-faint">
@@ -114,10 +116,10 @@ export function Sidebar({ open, onClose }: Props) {
                         to={item.to}
                         end={item.end}
                         onClick={onClose}
-                        className={`relative flex items-center gap-2.5 rounded-xl px-3 py-2 text-[13.5px] font-medium transition ${
+                        className={`relative flex items-center gap-2.5 rounded-xl px-3 py-2 text-[13.5px] font-medium transition-all duration-200 ${
                           active
-                            ? "bg-brand/10 text-ink dark:bg-brand/15 dark:text-white"
-                            : "text-ink-muted hover:bg-slate-50 hover:text-ink dark:hover:bg-white/5 dark:hover:text-white"
+                            ? "bg-brand/10 text-ink shadow-soft dark:bg-brand/15 dark:text-white"
+                            : "text-ink-muted hover:translate-x-0.5 hover:bg-slate-50 hover:text-ink dark:hover:bg-white/5 dark:hover:text-white"
                         }`}
                       >
                         {active ? (

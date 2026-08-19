@@ -1,14 +1,14 @@
--- Quantem / RyzeLog MySQL schema (canonical)
+-- Quantum Trading Journal MySQL schema (canonical)
 -- Import in Yegara cPanel phpMyAdmin: open phpMyAdmin → Import tab → Choose File → this file → Go.
 -- Import schema.mysql (or scheme.mysql) FIRST, then seed.sql.
--- If cPanel prefixes databases (e.g. youruser_quantem), create that DB in MySQL Databases
+-- If cPanel prefixes databases (e.g. youruser_quantum), create that DB in MySQL Databases
 -- and change the name below to match.
 
-CREATE DATABASE IF NOT EXISTS `quantem`
+CREATE DATABASE IF NOT EXISTS `quantum`
   CHARACTER SET utf8mb4
   COLLATE utf8mb4_unicode_ci;
 
-USE `quantem`;
+USE `quantum`;
 
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;

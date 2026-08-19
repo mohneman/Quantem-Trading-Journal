@@ -21,10 +21,32 @@ export function formatPnl(n: number) {
 }
 
 export function parseRr(rr: string) {
-  const m = rr.replace(/\s/g, "").match(/1:(\d+(?:\.\d+)?)/i);
+  const m = String(rr ?? "").replace(/\s/g, "").match(/1:(\d+(?:\.\d+)?)/i);
   if (m) return Number(m[1]);
   const n = Number(rr);
   return Number.isFinite(n) ? n : 0;
+}
+
+export function parseRiskPct(risk: string) {
+  const n = Number(String(risk ?? "").replace("%", "").trim());
+  return Number.isFinite(n) ? n : 0;
+}
+
+/** Estimate $ P&L from risk %, R:R, and account size — a trader's default before they override. */
+export function suggestPnl(opts: {
+  outcome: "WIN" | "LOSS" | "BE" | "OPEN";
+  risk: string;
+  rr: string;
+  balance?: number;
+}) {
+  if (opts.outcome === "OPEN" || opts.outcome === "BE") return 0;
+  const riskPct = parseRiskPct(opts.risk);
+  const balance = opts.balance && opts.balance > 0 ? opts.balance : 10_000;
+  const riskAmt = (balance * riskPct) / 100;
+  if (!riskAmt) return 0;
+  if (opts.outcome === "LOSS") return Math.round(-riskAmt * 100) / 100;
+  const rr = parseRr(opts.rr) || 1;
+  return Math.round(riskAmt * rr * 100) / 100;
 }
 
 export function rrFromPips(sl: string, tp: string) {
@@ -122,6 +144,21 @@ export function journalSnippet(notes: string) {
     .replace(/\[\{[\s\S]*\}\]/g, "")
     .trim();
   return cleaned;
+}
+
+export function journalPreview(j: {
+  notes: string;
+  gratitude?: string;
+  affirmation?: string;
+  plans?: { accountId: string; balance: string; trades: string; pips: string; risk: string; amount: string }[];
+}) {
+  if (j.notes.trim()) return j.notes.replace(/\s+/g, " ").trim();
+  if (j.plans?.length) {
+    return `--- Account Plans --- ${JSON.stringify(
+      j.plans.map((p) => ({ account: p.accountId, balance: p.balance, trades: p.trades, pips: p.pips, risk: p.risk })),
+    )}`;
+  }
+  return (j.gratitude || j.affirmation || "").replace(/\s+/g, " ").trim();
 }
 
 export function outcomeStreak(results: Array<"WIN" | "LOSS" | string>) {

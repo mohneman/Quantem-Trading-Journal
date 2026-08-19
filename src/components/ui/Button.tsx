@@ -24,7 +24,10 @@ export function Button({
   ...props
 }: Props) {
   return (
-    <button className={`${variants[variant]} ${className}`} {...props}>
+    <button
+      className={`${variants[variant]} ${className} disabled:pointer-events-none disabled:opacity-40`}
+      {...props}
+    >
       {icon}
       {children}
     </button>

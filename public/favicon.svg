@@ -1,10 +1,22 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
   <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#14C9B3"/>
-      <stop offset="100%" stop-color="#7C6CF0"/>
+    <linearGradient id="qRing" x1="8" y1="6" x2="58" y2="58" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#38BDF8"/>
+      <stop offset="1" stop-color="#1D4ED8"/>
+    </linearGradient>
+    <linearGradient id="qBars" x1="22" y1="18" x2="44" y2="46" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#67E8F9"/>
+      <stop offset="1" stop-color="#00D1C1"/>
     </linearGradient>
   </defs>
-  <rect width="64" height="64" rx="16" fill="url(#g)"/>
-  <text x="32" y="44" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="34" font-weight="700" fill="#fff">Q</text>
+  <rect width="64" height="64" rx="16" fill="#0B1B3A"/>
+  <ellipse cx="32" cy="33" rx="28" ry="11" transform="rotate(-22 32 33)" stroke="#22D3EE" stroke-width="2.2" fill="none"/>
+  <circle cx="10" cy="24" r="3.1" fill="#22D3EE"/>
+  <circle cx="54" cy="42" r="3.1" fill="#67E8F9"/>
+  <path d="M32 12c11 0 20 9 20 20 0 8.4-5.2 15.6-12.6 18.5L47 59H39.4l-5.2-7.1C33.5 52 32.8 52 32 52 21 52 12 43 12 32S21 12 32 12Z" fill="url(#qRing)"/>
+  <circle cx="32" cy="32" r="13.5" fill="#0B1B3A"/>
+  <rect x="22.2" y="28" width="3.4" height="10" rx="1.2" fill="url(#qBars)"/>
+  <rect x="27.6" y="22" width="3.4" height="16" rx="1.2" fill="url(#qBars)"/>
+  <rect x="33" y="26" width="3.4" height="12" rx="1.2" fill="url(#qBars)"/>
+  <rect x="38.4" y="24" width="3.4" height="14" rx="1.2" fill="url(#qBars)"/>
 </svg>

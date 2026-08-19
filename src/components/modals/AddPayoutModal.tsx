@@ -5,10 +5,12 @@ import { Field, Input, Select, TextArea } from "../ui/Field";
 import { Button } from "../ui/Button";
 import { TODAY_ISO } from "../../data";
 import { useStore } from "../../store";
+import { useToast } from "../../context/ToastContext";
 import { traderShare } from "../../lib";
 
 export function AddPayoutModal({ onClose, payoutId }: { onClose: () => void; payoutId?: string }) {
   const { data, addPayout, updatePayout } = useStore();
+  const { toast } = useToast();
   const existing = data.payouts.find((p) => p.id === payoutId);
   const [accountId, setAccountId] = useState(existing?.accountId ?? "");
   const [firm, setFirm] = useState(existing?.firm ?? "");
@@ -32,7 +34,7 @@ export function AddPayoutModal({ onClose, payoutId }: { onClose: () => void; pay
   }, [amount, share]);
 
   return (
-    <Modal title={existing ? "Edit Payout" : "Add Payout"} onClose={onClose} wide>
+    <Modal title={existing ? "Edit Payout" : "Add Payout"} onClose={onClose} wide glow>
       <div className="space-y-5">
         <p className="section-title">Payout Details</p>
         <div className="grid gap-3 sm:grid-cols-4">
@@ -46,7 +48,8 @@ export function AddPayoutModal({ onClose, payoutId }: { onClose: () => void; pay
                   setAccountName(a.name);
                   setFirm(a.website || a.name);
                   setSize(String(a.balance));
-                  setProfit(String(a.balance));
+                  const net = data.trades.filter((t) => t.accountIds.includes(a.id)).reduce((s, t) => s + t.pnl, 0);
+                  setProfit(String(Math.max(0, Math.round(net * 100) / 100) || a.balance));
                 }
               }}
             >
@@ -60,7 +63,7 @@ export function AddPayoutModal({ onClose, payoutId }: { onClose: () => void; pay
           <Field label="Account Name"><Input value={accountName} onChange={(e) => setAccountName(e.target.value)} /></Field>
           <Field label="Account Size"><Input value={size} onChange={(e) => setSize(e.target.value)} /></Field>
           <Field label="Available Profit *">
-            <Input className="text-brand" value={profit} onChange={(e) => setProfit(e.target.value)} />
+            <Input className="font-semibold text-brand" value={profit} onChange={(e) => setProfit(e.target.value)} />
           </Field>
           <Field label="Payout Amount *">
             <Input value={amount} onChange={(e) => setAmount(e.target.value)} />
@@ -82,14 +85,19 @@ export function AddPayoutModal({ onClose, payoutId }: { onClose: () => void; pay
               <option>Crypto</option>
               <option>Rise</option>
               <option>Wise</option>
+              <option>Bank</option>
             </Select>
           </Field>
         </div>
-        <Field label="Notes"><TextArea placeholder="Optional notes..." value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
+        <div>
+          <p className="section-title mb-3">Additional Info</p>
+          <Field label="Notes"><TextArea placeholder="Optional notes..." value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
+        </div>
         {error ? <p className="text-sm text-loss">{error}</p> : null}
-        <div className="flex justify-end gap-3 border-t border-line pt-4 dark:border-[#243041]">
+        <div className="grid gap-3 border-t border-line pt-4 sm:grid-cols-2 dark:border-[#243041]">
           <Button
             variant="primary"
+            className="w-full"
             icon={<Check size={16} />}
             onClick={() => {
               const n = Number(amount) || 0;
@@ -117,12 +125,13 @@ export function AddPayoutModal({ onClose, payoutId }: { onClose: () => void; pay
               };
               if (existing) updatePayout(existing.id, row);
               else addPayout(row);
+              toast(existing ? "Payout updated" : "Payout saved");
               onClose();
             }}
           >
             {existing ? "UPDATE PAYOUT" : "SAVE PAYOUT"}
           </Button>
-          <Button variant="danger-outline" onClick={onClose} icon={<X size={16} />}>CANCEL</Button>
+          <Button variant="danger-outline" className="w-full" onClick={onClose} icon={<X size={16} />}>CANCEL</Button>
         </div>
       </div>
     </Modal>

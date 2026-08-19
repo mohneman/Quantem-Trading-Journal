@@ -22,11 +22,18 @@ import {
   StatsPage,
 } from "./pages/RestPages";
 import { TradesPage } from "./pages/TradesPage";
+import { SettingsPage } from "./pages/SettingsPage";
 import { useStore } from "./store";
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { session } = useStore();
   if (!session) return <Navigate to="/login" replace />;
+  return children;
+}
+
+function RequireSuperAdmin({ children }: { children: React.ReactNode }) {
+  const { isSuperAdmin } = useStore();
+  if (!isSuperAdmin) return <Navigate to="/" replace />;
   return children;
 }
 
@@ -61,6 +68,14 @@ export default function App() {
         <Route path="payout-journal" element={<PayoutJournalPage />} />
         <Route path="coupons" element={<CouponsPage />} />
         <Route path="affiliate" element={<AffiliatePage />} />
+        <Route
+          path="settings"
+          element={
+            <RequireSuperAdmin>
+              <SettingsPage />
+            </RequireSuperAdmin>
+          }
+        />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

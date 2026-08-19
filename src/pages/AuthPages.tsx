@@ -2,12 +2,13 @@ import { useState } from "react";
 import { Eye, EyeOff, Lock, Mail, UserRound } from "lucide-react";
 import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { useStore } from "../store";
+import { LogoMark } from "../components/ui/Logo";
 
 export function LoginPage() {
   const { session, login, googleContinue } = useStore();
   const nav = useNavigate();
   const [email, setEmail] = useState("nejahseid750@gmail.com");
-  const [password, setPassword] = useState("quantem");
+  const [password, setPassword] = useState("quantum");
   const [show, setShow] = useState(false);
   const [error, setError] = useState("");
 
@@ -96,7 +97,7 @@ export function SignupPage() {
   return (
     <AuthShell>
       <h1 className="text-3xl font-bold text-ink">Sign up</h1>
-      <p className="mt-1 text-sm text-ink-muted">Create your RyzeLog journal in seconds.</p>
+      <p className="mt-1 text-sm text-ink-muted">Create your Quantum journal in seconds.</p>
       <form
         className="mt-8 space-y-4"
         onSubmit={(e) => {
@@ -243,17 +244,15 @@ function AuthShell({ children }: { children: React.ReactNode }) {
         <div className="pointer-events-none absolute -right-16 bottom-24 h-80 w-80 rounded-full bg-sky-100/80 blur-3xl" />
         <div className="relative flex flex-col items-center px-12 text-center">
           <div className="mb-8 flex items-end gap-3">
-            <IconChip className="-mb-4 rotate-[-8deg] bg-violet-100 text-violet-500">📈</IconChip>
-            <IconChip className="bg-sky-100 text-sky-500">🕒</IconChip>
-            <IconChip className="-mb-6 rotate-[8deg] bg-amber-100 text-amber-500">📄</IconChip>
-            <IconChip className="bg-emerald-100 text-emerald-500">$</IconChip>
+            <IconChip className="animate-float-slow -mb-4 rotate-[-8deg] bg-violet-100 text-violet-500">📈</IconChip>
+            <IconChip className="animate-float bg-sky-100 text-sky-500">🕒</IconChip>
+            <IconChip className="animate-float-delayed -mb-6 rotate-[8deg] bg-amber-100 text-amber-500">📄</IconChip>
+            <IconChip className="animate-float bg-emerald-100 text-emerald-500">$</IconChip>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="relative h-8 w-8">
-              <span className="absolute left-0 top-1 h-5 w-5 rounded-full bg-brand/90" />
-              <span className="absolute right-0 top-2 h-5 w-5 rounded-full bg-purple-brand/90" />
-            </span>
-            <p className="text-2xl font-bold tracking-tight text-[#0F1B2D]">Ryze Log</p>
+          <div className="flex flex-col items-center gap-2">
+            <LogoMark size={56} />
+            <p className="text-2xl font-bold tracking-tight text-[#0F1B2D]">Quantum</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-sky-600">Trading Journal</p>
           </div>
           <h2 className="mt-8 max-w-md text-4xl font-extrabold leading-tight text-[#0F1B2D]">
             Trade Smarter Track Better. Perform Stronger.

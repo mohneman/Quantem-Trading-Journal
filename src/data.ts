@@ -32,7 +32,7 @@ export const psychologyTags = [
 export const startingBalances = [
   "$5,000",
   "$10,000",
-  "$20,000",
+  "$25,000",
   "$50,000",
   "$100,000",
   "$200,000",
@@ -89,11 +89,11 @@ export const trades: Trade[] = [
 
 export const journalEntry = {
   title: "monday",
-  date: "Aug 18 Sun",
-  iso: "2026-08-18",
-  tags: ["Monday", "Trading Personal", "Excited"],
+  date: "Aug 16 Sun",
+  iso: "2026-08-16",
+  tags: ["Monday", "Trading", "Personal"],
   mood: "Excited",
-  snippet: '--- Account Plane --- [ {"account":...',
+  snippet: '--- Account Plans --- [{"account":...',
 };
 
 export const moodMonth = [

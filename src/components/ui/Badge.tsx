@@ -4,10 +4,10 @@ type Props = {
 };
 
 const tones: Record<NonNullable<Props["tone"]>, string> = {
-  win: "bg-brand text-white",
-  loss: "border border-loss bg-loss text-white",
+  win: "bg-emerald-500 text-white",
+  loss: "bg-[#F07167] text-white",
   neutral: "bg-slate-100 text-ink-muted",
-  grade: "bg-brand/10 text-brand-700",
+  grade: "bg-emerald-50 text-emerald-700",
   buy: "bg-brand/10 text-brand-700",
   sell: "bg-violet-50 text-purple-brand",
 };

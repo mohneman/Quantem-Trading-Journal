@@ -5,6 +5,7 @@ import { Field, Input, Select } from "../ui/Field";
 import { Button } from "../ui/Button";
 import { startingBalances } from "../../data";
 import { useStore, type AccountType } from "../../store";
+import { useToast } from "../../context/ToastContext";
 
 export function NewAccountModal({
   onClose,
@@ -16,9 +17,10 @@ export function NewAccountModal({
   accountId?: string;
 }) {
   const { data, addAccount, updateAccount } = useStore();
+  const { toast } = useToast();
   const existing = data.accounts.find((a) => a.id === accountId);
   const [name, setName] = useState(existing?.name ?? "");
-  const [type, setType] = useState<AccountType>(existing?.type ?? (prop ? "Prop" : "Personal"));
+  const [type, setType] = useState<AccountType>(existing?.type ?? (prop ? "Prop" : "Real Account"));
   const [challenge, setChallenge] = useState(existing?.challengeType || "Phase 1");
   const [website, setWebsite] = useState(existing?.website ?? "");
   const [split, setSplit] = useState(existing?.split ?? "");
@@ -33,25 +35,34 @@ export function NewAccountModal({
   const editing = Boolean(existing);
 
   return (
-    <Modal title={editing ? "Edit Trading Account" : "New Trading Account"} onClose={onClose}>
-      <div className="mb-4 flex items-center gap-2 text-brand">
-        <Wallet size={18} />
-        <span className="text-sm font-semibold">{editing ? "Edit Trading Account" : "New Trading Account"}</span>
-      </div>
+    <Modal
+      title={editing ? "Update Account" : "New Trading Account"}
+      onClose={onClose}
+      glow
+      icon={
+        <span className="grid h-9 w-9 place-items-center rounded-xl bg-brand/10 text-brand">
+          <Wallet size={18} />
+        </span>
+      }
+    >
       <div className="space-y-4">
         <Field label="Account Name">
           <Input placeholder="e.g. FTMO 100K Challenge" value={name} onChange={(e) => setName(e.target.value)} />
         </Field>
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className={`grid gap-4 ${isProp ? "sm:grid-cols-2" : ""}`}>
           <Field label="Account Type">
             <Select
               className={isProp ? "ring-2 ring-violet-300" : ""}
               value={type}
-              onChange={(e) => setType(e.target.value as AccountType)}
+              onChange={(e) => {
+                const next = e.target.value as AccountType;
+                setType(next);
+                if (next === "Prop" && (status === "Active" || !status)) setStatus("Phase 1");
+              }}
             >
+              <option>Real Account</option>
               <option>Prop</option>
               <option>Personal</option>
-              <option>Real Account</option>
               <option>Demo</option>
             </Select>
           </Field>
@@ -63,9 +74,7 @@ export function NewAccountModal({
                 <option>Funded</option>
               </Select>
             </Field>
-          ) : (
-            <span />
-          )}
+          ) : null}
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Website">
@@ -74,14 +83,18 @@ export function NewAccountModal({
           <Field label="Split (%)">
             <Select value={split} onChange={(e) => setSplit(e.target.value)}>
               <option value="">Select Split...</option>
+              <option>85%</option>
+              <option>80%</option>
+              <option>90%</option>
               <option>80/20</option>
               <option>90/10</option>
+              <option>70/30</option>
               <option>100/0</option>
             </Select>
           </Field>
         </div>
         {isProp ? (
-          <>
+          <div className="animate-details-in space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Drawdown Allowed (%)">
                 <Input placeholder="e.g. 10 or 8" value={drawdown} onChange={(e) => setDrawdown(e.target.value)} />
@@ -103,7 +116,7 @@ export function NewAccountModal({
                 <option>Failed</option>
               </Select>
             </Field>
-          </>
+          </div>
         ) : null}
         <div>
           <p className="label">Starting Balance</p>
@@ -116,10 +129,10 @@ export function NewAccountModal({
                   setBalanceLabel(item);
                   setBalance(item.replace(/[$,]/g, ""));
                 }}
-                className={`h-11 rounded-xl border text-sm font-medium ${
+                className={`balance-chip h-11 rounded-xl border text-sm font-medium ${
                   item === balanceLabel
                     ? "border-brand bg-brand/10 text-brand"
-                    : "border-line bg-white dark:border-[#243041] dark:bg-[#1b2330]"
+                    : "border-line bg-slate-50 text-ink dark:border-[#243041] dark:bg-[#1b2330] dark:text-slate-100"
                 }`}
               >
                 {item}
@@ -137,23 +150,31 @@ export function NewAccountModal({
         </div>
         <Button
           variant="gradient"
-          className="w-full"
+          className="w-full rounded-xl"
           icon={<Plus size={16} />}
           onClick={() => {
-            if (!name.trim()) return;
+            if (!name.trim()) {
+              toast("Please enter an account name.", "info");
+              return;
+            }
             const payload = {
               name: name.trim(),
               type,
               challengeType: isProp ? challenge : "",
-              website,
+              website: website.trim(),
               split,
               drawdown,
               target,
               status: isProp ? status : existing?.status || "Active",
               balance: Number(balance) || 0,
             };
-            if (existing) updateAccount(existing.id, payload);
-            else addAccount(payload);
+            if (existing) {
+              updateAccount(existing.id, payload);
+              toast("Account updated successfully!");
+            } else {
+              addAccount(payload);
+              toast("Account created successfully!");
+            }
             onClose();
           }}
         >

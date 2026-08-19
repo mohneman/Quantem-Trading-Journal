@@ -1,17 +1,17 @@
--- Quantem / RyzeLog sample data
--- Import in Yegara cPanel phpMyAdmin: open phpMyAdmin → select database `quantem` (or your prefixed name)
+-- Quantum Trading Journal sample data
+-- Import in Yegara cPanel phpMyAdmin: open phpMyAdmin → select database `quantum` (or your prefixed name)
 -- → Import tab → Choose File → this file → Go.
 -- Import AFTER schema.mysql (or scheme.mysql).
 --
 -- The SPA currently uses localStorage (`q-users`, `q-session`, `q-data-*`, `q-theme`).
 -- These SQL files are a MySQL mirror for phpMyAdmin / future API use — the browser app
 -- does not read this database yet.
--- Demo login in the SPA: nejahseid750@gmail.com / quantem (plaintext in localStorage).
--- password_hash below is SHA2-256('quantem'). For production, replace with bcrypt, e.g.
---   php -r "echo password_hash('quantem', PASSWORD_BCRYPT);"
+-- Demo login in the SPA: nejahseid750@gmail.com / quantum (plaintext in localStorage).
+-- password_hash below is SHA2-256('quantum'). For production, replace with bcrypt, e.g.
+--   php -r "echo password_hash('quantum', PASSWORD_BCRYPT);"
 --   -- $2y$10$......................................................
 
-USE `quantem`;
+USE `quantum`;
 
 SET NAMES utf8mb4;
 
@@ -48,11 +48,11 @@ INSERT INTO `users` (
   'ali ahmed',
   'nejahseid750@gmail.com',
   '251962091945',
-  SHA2('quantem', 256),
+  SHA2('quantum', 256),
   'email',
   '',
   'AA',
-  'RYZE-AA',
+  'QUANTUM-AA',
   '2026-08-16 09:00:00'
 );
 
@@ -297,8 +297,8 @@ INSERT INTO `backtests` (
 );
 
 INSERT INTO `coupons` (`id`, `user_id`, `firm`, `code`, `discount`, `url`, `expiry`) VALUES
-  ('c1', 'u-demo', 'FTMO', 'RYZE10', '10% off', 'https://ftmo.com', '2026-12-31'),
-  ('c2', 'u-demo', 'FundingPips', 'QUANTEM', '20% off', 'https://fundingpips.com', '2026-10-31');
+  ('c1', 'u-demo', 'FTMO', 'QUANTUM10', '10% off', 'https://ftmo.com', '2026-12-31'),
+  ('c2', 'u-demo', 'FundingPips', 'QUANTUM', '20% off', 'https://fundingpips.com', '2026-10-31');
 
 INSERT INTO `economic_events` (
   `event_date`, `event_time`, `currency`, `event_name`, `impact`,

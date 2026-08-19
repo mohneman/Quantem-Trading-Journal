@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   Bolt,
   CheckSquare,
-  HelpCircle,
+  LifeBuoy,
   LogOut,
   Moon,
   MoreHorizontal,
@@ -19,7 +19,7 @@ export function ProfileMenu() {
   const ref = useRef<HTMLDivElement>(null);
   const { setOpen: setModal } = useModal();
   const { theme, toggle } = useTheme();
-  const { data, logout } = useStore();
+  const { data, logout, isSuperAdmin } = useStore();
   const nav = useNavigate();
   const user = data.profile;
 
@@ -31,11 +31,14 @@ export function ProfileMenu() {
     return () => document.removeEventListener("mousedown", onDoc);
   }, []);
 
+  const item = "flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-sm transition";
+
   return (
     <div ref={ref} className="relative border-t border-line px-3 py-3 dark:border-[#243041]">
       {open ? (
-        <div className="absolute bottom-[72px] left-3 right-3 z-50 overflow-hidden rounded-2xl border border-line bg-white shadow-modal dark:border-[#243041] dark:bg-[#151a21]">
-          <button className="flex w-full items-center gap-2.5 bg-brand/10 px-3 py-2.5 text-left text-sm font-semibold text-brand"
+        <div className="animate-details-in absolute bottom-[72px] left-3 right-3 z-50 overflow-hidden rounded-2xl border border-line bg-white shadow-modal dark:border-[#243041] dark:bg-[#151a21]">
+          <button
+            className={`${item} bg-brand/10 font-semibold text-brand hover:bg-brand/15`}
             onClick={() => {
               setModal("upgrade");
               setOpen(false);
@@ -44,7 +47,7 @@ export function ProfileMenu() {
             <Bolt size={16} /> Upgrade Plan
           </button>
           <button
-            className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-sm text-ink dark:text-slate-100"
+            className={`${item} text-ink hover:bg-slate-50 dark:text-slate-100 dark:hover:bg-white/5`}
             onClick={() => {
               setModal("profile");
               setOpen(false);
@@ -53,7 +56,7 @@ export function ProfileMenu() {
             <UserRound size={16} className="text-brand" /> Profile Settings
           </button>
           <button
-            className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-sm text-ink dark:text-slate-100"
+            className={`${item} text-ink hover:bg-slate-50 dark:text-slate-100 dark:hover:bg-white/5`}
             onClick={() => {
               setModal("checklist");
               setOpen(false);
@@ -63,17 +66,17 @@ export function ProfileMenu() {
           </button>
           <div className="h-px bg-line dark:bg-[#243041]" />
           <button
-            className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-sm text-ink dark:text-slate-100"
+            className={`${item} text-ink hover:bg-slate-50 dark:text-slate-100 dark:hover:bg-white/5`}
             onClick={() => {
               setModal("help");
               setOpen(false);
             }}
           >
-            <HelpCircle size={16} className="text-purple-brand" /> Help & Support
+            <LifeBuoy size={16} className="text-purple-brand" /> Help & Support
           </button>
           <div className="h-px bg-line dark:bg-[#243041]" />
           <button
-            className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-sm text-ink dark:text-slate-100"
+            className={`${item} text-ink hover:bg-slate-50 dark:text-slate-100 dark:hover:bg-white/5`}
             onClick={() => {
               toggle();
               setOpen(false);
@@ -88,7 +91,7 @@ export function ProfileMenu() {
           </button>
           <div className="h-px bg-line dark:bg-[#243041]" />
           <button
-            className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-sm text-loss"
+            className={`${item} text-loss hover:bg-loss-soft dark:hover:bg-loss/10`}
             onClick={() => {
               logout();
               nav("/login", { replace: true });
@@ -111,11 +114,14 @@ export function ProfileMenu() {
           <p className="truncate text-sm font-medium capitalize text-ink dark:text-white">
             {user.name}
           </p>
+          {isSuperAdmin ? (
+            <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-brand">Super Admin</p>
+          ) : null}
         </div>
         <button
           aria-label="Profile menu"
           onClick={() => setOpen((v) => !v)}
-          className="rounded-lg p-1 text-ink-faint hover:bg-slate-50 hover:text-ink dark:hover:bg-white/10"
+          className={`rounded-lg p-1 text-ink-faint transition hover:bg-slate-50 hover:text-ink dark:hover:bg-white/10 ${open ? "bg-slate-100 text-ink dark:bg-white/10 dark:text-white" : ""}`}
         >
           <MoreHorizontal size={16} />
         </button>

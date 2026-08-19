@@ -1,4 +1,4 @@
-# Q / Quantem Trading Journal (RyzeLog)
+# Quantum Trading Journal
 
 Progressive Web App for journaling trades, daily notes, mind maps, analytics, and prop payouts. Data stays in the browser (`localStorage`).
 
@@ -11,7 +11,7 @@ npm run dev
 
 Open http://localhost:5173/
 
-Demo login: `nejahseid750@gmail.com` / `quantem`
+Demo login: `nejahseid750@gmail.com` / `quantum`
 
 ## Production build (Yegara / cPanel)
 
@@ -41,4 +41,4 @@ Upload **everything inside `dist/`** to `public_html` (or a subdirectory) via Ye
 - Analytics filters + print/PDF export
 - Dark mode and profile settings
 
-Powered by Sunmax Inc. UI branding: RyzeLog / Q / Quantem.
+Powered by Sunmax Inc. UI branding: Quantum / Quantum Trading Journal.

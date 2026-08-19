@@ -40,7 +40,7 @@ export function ModalProvider({ children }: { children: ReactNode }) {
       ) : null}
       {open === "backtest" ? <AddBacktestModal onClose={close} backtestId={payload?.backtestId} /> : null}
       {open === "payout" ? <AddPayoutModal onClose={close} payoutId={payload?.payoutId} /> : null}
-      {open === "trade" ? <AddTradeModal onClose={close} tradeId={payload?.tradeId} /> : null}
+      {open === "trade" ? <AddTradeModal onClose={close} tradeId={payload?.tradeId} initialDate={payload?.date} /> : null}
       {open === "newDay" || open === "editDay" ? (
         <NewDayModal onClose={close} journalId={payload?.journalId} initialDate={payload?.date} />
       ) : null}

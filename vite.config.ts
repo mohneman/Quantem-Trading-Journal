@@ -10,8 +10,8 @@ export default defineConfig({
       registerType: "autoUpdate",
       includeAssets: ["favicon.svg"],
       manifest: {
-        name: "Q — Quantem Trading Journal",
-        short_name: "RyzeLog",
+        name: "Quantum Trading Journal",
+        short_name: "Quantum",
         description: "A modern trading journal and analytics platform.",
         theme_color: "#00D1C1",
         background_color: "#F8FAFC",
