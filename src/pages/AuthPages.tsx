@@ -262,7 +262,7 @@ function AuthShell({ children }: { children: React.ReactNode }) {
           </p>
         </div>
         <p className="absolute bottom-8 text-xs text-ink-faint">
-          Created for traders, with passion and love! Powered by Sunmax Inc.
+          Created for traders, with passion and love! Powered by Amiinhub.
         </p>
       </div>
       <div className="flex items-center justify-center bg-[#F4F6FA] px-6 py-12">

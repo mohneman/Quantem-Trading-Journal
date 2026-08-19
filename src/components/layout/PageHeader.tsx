@@ -19,29 +19,29 @@ export function PageHeader({
   onMenu: () => void;
 }) {
   return (
-    <div className="mb-6">
-      <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
-        <div className="flex items-start gap-3">
+    <header className="page-header sticky top-3 z-20 mb-5 px-4 py-4 sm:top-4 sm:mb-6 sm:px-6 sm:py-5">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="flex min-w-0 items-start gap-3">
           <MenuButton onClick={onMenu} />
-          <div>
-            <h1 className="text-xl font-semibold tracking-tight text-ink dark:text-white sm:text-2xl">
+          <div className="min-w-0">
+            <h1 className="text-2xl font-bold tracking-tight text-ink dark:text-white sm:text-[1.75rem]">
               {title}
             </h1>
             <p className="mt-1 text-sm text-ink-muted">{subtitle}</p>
           </div>
         </div>
-        <div className="flex items-center gap-2 rounded-full border border-brand/20 bg-brand/10 px-3 py-2 dark:border-brand/30 dark:bg-brand/10">
-          <CalendarDays size={16} className="text-brand" />
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-brand">
-              {dateLabel}
-            </p>
+        <div className="shrink-0">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-ink-faint">
+            {dateLabel}
+          </p>
+          <div className="mt-1 flex items-center gap-1.5">
+            <CalendarDays size={15} className="text-brand" strokeWidth={1.75} />
             <p className="text-sm font-medium text-ink dark:text-white">{TODAY_LABEL}</p>
           </div>
         </div>
       </div>
       {(eyebrow || action) && (
-        <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="mt-4 flex flex-wrap items-end justify-between gap-3">
           <div>
             {eyebrow ? (
               <span className="mb-2 inline-flex rounded-full bg-brand/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-brand">
@@ -52,6 +52,6 @@ export function PageHeader({
           {action}
         </div>
       )}
-    </div>
+    </header>
   );
 }

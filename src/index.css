@@ -85,6 +85,10 @@ body {
     @apply text-sm font-semibold text-brand;
   }
 
+  .page-header {
+    @apply rounded-2xl border border-white/70 bg-white shadow-card dark:border-[#243041] dark:bg-[#151a21] dark:shadow-[0_10px_28px_rgba(0,0,0,0.28)];
+  }
+
   .page-shell {
     @apply overflow-hidden rounded-[28px] border border-white/70 bg-white/80 shadow-card backdrop-blur-sm dark:border-[#243041] dark:bg-[#151a21]/90;
   }
@@ -103,16 +107,19 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   color: #94a3b8;
 }
 
-.card {
+.card,
+.page-header {
   transition: box-shadow 0.25s ease, transform 0.25s ease, border-color 0.2s ease;
 }
 
-.card:hover {
+.card:hover,
+.page-header:hover {
   transform: translateY(-3px);
   box-shadow: 0 14px 36px rgba(15, 23, 42, 0.1);
 }
 
-.dark .card:hover {
+.dark .card:hover,
+.dark .page-header:hover {
   box-shadow: 0 14px 36px rgba(0, 0, 0, 0.35);
 }
 

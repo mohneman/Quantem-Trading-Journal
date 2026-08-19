@@ -41,4 +41,4 @@ Upload **everything inside `dist/`** to `public_html` (or a subdirectory) via Ye
 - Analytics filters + print/PDF export
 - Dark mode and profile settings
 
-Powered by Sunmax Inc. UI branding: Quantum / Quantum Trading Journal.
+Powered by Amiinhub. UI branding: Quantum / Quantum Trading Journal.

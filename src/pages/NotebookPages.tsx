@@ -695,17 +695,24 @@ export function MindMapCanvasPage() {
 
   if (!map) {
     return (
-      <div className="page-shell p-10 text-center">
-        <p className="text-sm text-ink-muted">No mind map yet.</p>
-        <button
-          className="btn-gradient mt-4"
-          onClick={() => {
-            const m = addMap();
-            navigate(`/notebook/maps/${m.id}`);
-          }}
-        >
-          New Map
-        </button>
+      <div>
+        <PageHeader
+          title="Trader Notebook"
+          subtitle="Keep market notes, model ideas, and setup snapshots organized."
+          onMenu={onMenu}
+        />
+        <div className="page-shell p-10 text-center">
+          <p className="text-sm text-ink-muted">No mind map yet.</p>
+          <button
+            className="btn-gradient mt-4"
+            onClick={() => {
+              const m = addMap();
+              navigate(`/notebook/maps/${m.id}`);
+            }}
+          >
+            New Map
+          </button>
+        </div>
       </div>
     );
   }

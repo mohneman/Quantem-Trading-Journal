@@ -15,7 +15,7 @@ export function HelpModal({ onClose }: { onClose: () => void }) {
           <li>Position Calculator sizes lots from balance, risk %, and stop-loss pips.</li>
           <li>Export payouts as CSV from Payout Journal, and print analytics as PDF.</li>
         </ul>
-        <p>Powered by Sunmax Inc.</p>
+        <p>Powered by Amiinhub.</p>
       </div>
     </Modal>
   );
