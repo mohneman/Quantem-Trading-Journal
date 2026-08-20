@@ -20,6 +20,7 @@ import { useModal } from "../../context/ModalContext";
 import { useToast } from "../../context/ToastContext";
 import { useStore, type Trade } from "../../store";
 import { formatPnl, suggestPnl } from "../../lib";
+import { ImageProofField } from "../ui/ImageProofField";
 
 export function TradeViewModal({ onClose, tradeId }: { onClose: () => void; tradeId: string }) {
   const { data, deleteTrade } = useStore();
@@ -172,7 +173,6 @@ function OutcomeForm({
   const { toast } = useToast();
   const { data } = useStore();
   const [out, setOut] = useState(t.outcome === "OPEN" ? "LOSS" : t.outcome);
-  const [after, setAfter] = useState(t.afterUrl);
   const [applied, setApplied] = useState(t.afterUrl);
   const [notes, setNotes] = useState(t.notes);
   const [accounts, setAccounts] = useState<string[]>(t.accountIds);
@@ -253,43 +253,7 @@ function OutcomeForm({
       <p className="mb-2 mt-5 flex items-center gap-2 font-semibold dark:text-white">
         <ImageIcon size={16} className="text-purple-brand" /> After Screenshot (Proof)
       </p>
-      <div className="flex gap-2">
-        <div className="relative flex-1">
-          <Link2 size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-faint" />
-          <input
-            className="input pl-10"
-            placeholder="Paste direct image link (e.g. https://i.imgur.com/abc123.png)"
-            value={after}
-            onChange={(e) => setAfter(e.target.value)}
-          />
-        </div>
-        <button className="btn-primary" type="button" onClick={() => setApplied(after)}>
-          Apply
-        </button>
-      </div>
-      {applied ? (
-        <div className="mt-2">
-          <p className="mb-1 flex items-center gap-1 text-xs font-medium text-brand">
-            <span className="grid h-4 w-4 place-items-center rounded-full bg-brand text-[10px] text-white">✓</span>
-            Snapshot preview
-          </p>
-          <div className="relative inline-block">
-            <img src={applied} alt="After" className="max-h-48 rounded-xl" />
-            <button
-              type="button"
-              className="absolute right-2 top-2 grid h-7 w-7 place-items-center rounded-full bg-loss text-white"
-              onClick={() => {
-                setApplied("");
-                setAfter("");
-              }}
-            >
-              <Trash2 size={12} />
-            </button>
-          </div>
-        </div>
-      ) : (
-        <p className="mt-2 text-xs text-ink-faint">Snapshot preview</p>
-      )}
+      <ImageProofField value={applied} onChange={setApplied} />
 
       <p className="mb-2 mt-5 flex items-center gap-2 font-semibold text-purple-brand">
         <Wallet size={16} /> Linked Accounts

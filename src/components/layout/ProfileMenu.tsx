@@ -19,9 +19,11 @@ export function ProfileMenu() {
   const ref = useRef<HTMLDivElement>(null);
   const { setOpen: setModal } = useModal();
   const { theme, toggle } = useTheme();
-  const { data, logout, isSuperAdmin } = useStore();
+  const { data, logout, currentUser } = useStore();
   const nav = useNavigate();
   const user = data.profile;
+  const displayName = currentUser?.name || user.name;
+  const initials = user.initials || displayName.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase() ?? "").join("") || "Q";
 
   useEffect(() => {
     function onDoc(e: MouseEvent) {
@@ -104,20 +106,15 @@ export function ProfileMenu() {
 
       <div className="flex items-center gap-3">
         {user.avatar ? (
-          <img src={user.avatar} alt="" className="h-9 w-9 rounded-full object-cover" />
+          <img src={user.avatar} alt="" className="h-10 w-10 rounded-full object-cover" />
         ) : (
-          <div className="grid h-9 w-9 place-items-center rounded-full bg-brand-gradient text-xs font-semibold text-white">
-            {user.initials}
+          <div className="grid h-10 w-10 place-items-center rounded-full bg-brand-gradient text-xs font-bold text-white">
+            {initials}
           </div>
         )}
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium capitalize text-ink dark:text-white">
-            {user.name}
-          </p>
-          {isSuperAdmin ? (
-            <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-brand">Super Admin</p>
-          ) : null}
-        </div>
+        <p className="min-w-0 flex-1 truncate text-sm font-medium text-ink dark:text-white">
+          {displayName}
+        </p>
         <button
           aria-label="Profile menu"
           onClick={() => setOpen((v) => !v)}

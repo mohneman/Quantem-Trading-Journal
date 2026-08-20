@@ -104,8 +104,8 @@ export function DashboardPage() {
                 onClick={() => setRange(r)}
                 className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition duration-200 hover:-translate-y-0.5 ${
                   range === r
-                    ? "bg-sky-500 text-white shadow-soft"
-                    : "bg-slate-100 text-ink-muted hover:bg-slate-200 dark:bg-white/10 dark:text-slate-300 dark:hover:bg-white/20"
+                    ? "bg-brand-gradient text-white shadow-soft"
+                    : "border border-line bg-white text-ink-muted hover:bg-slate-50 dark:border-[#243041] dark:bg-white/10 dark:text-slate-300 dark:hover:bg-white/20"
                 }`}
               >
                 {r}
@@ -191,8 +191,12 @@ export function DashboardPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {dayTrades.map((t) => (
-                        <tr key={t.id} className="dash-row border-t border-line dark:border-[#243041]">
+                          {dayTrades.map((t) => (
+                        <tr
+                          key={t.id}
+                          className="dash-row cursor-pointer border-t border-line dark:border-[#243041]"
+                          onClick={() => setOpen("tradeView", { tradeId: t.id })}
+                        >
                           <td className="px-2 py-2 font-semibold dark:text-white">{t.symbol || "—"}</td>
                           <td className="px-2 py-2 text-brand">{t.direction || "—"}</td>
                           <td className="px-2 py-2">
@@ -201,11 +205,16 @@ export function DashboardPage() {
                           <td className="px-2 py-2 font-semibold">{formatPnl(t.pnl)}</td>
                           <td className="px-2 py-2">
                             <div className="flex justify-end gap-1">
-                              <button className="rounded-lg p-1 text-ink-faint hover:bg-slate-100 hover:text-brand dark:hover:bg-white/10" onClick={() => setOpen("tradeView", { tradeId: t.id })} title="View">
+                              <button
+                                type="button"
+                                className="rounded-lg p-1 text-ink-faint hover:bg-slate-100 hover:text-brand dark:hover:bg-white/10"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setOpen("tradeView", { tradeId: t.id });
+                                }}
+                                title="View"
+                              >
                                 <Eye size={13} />
-                              </button>
-                              <button className="rounded-lg p-1 text-ink-faint hover:bg-slate-100 hover:text-brand dark:hover:bg-white/10" onClick={() => setOpen("trade", { tradeId: t.id })} title="Edit">
-                                <Pencil size={13} />
                               </button>
                             </div>
                           </td>
@@ -311,7 +320,11 @@ export function DashboardPage() {
                   </tr>
                 ) : (
                   recent.map((t) => (
-                    <tr key={t.id} className="dash-row border-b border-line last:border-0 dark:border-[#243041]">
+                    <tr
+                      key={t.id}
+                      className="dash-row cursor-pointer border-b border-line last:border-0 dark:border-[#243041]"
+                      onClick={() => setOpen("tradeView", { tradeId: t.id })}
+                    >
                       <td className="px-4 py-3 text-ink-muted">{t.date}</td>
                       <td className="px-4 py-3 font-semibold dark:text-white">{t.symbol || "—"}</td>
                       <td className="px-4 py-3 text-brand">{t.direction || "—"}</td>
@@ -322,14 +335,16 @@ export function DashboardPage() {
                       </td>
                       <td className="px-4 py-3 font-semibold">{formatPnl(t.pnl)}</td>
                       <td className="px-4 py-3">
-                        <div className="flex gap-1">
-                          <button className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-ink-muted hover:bg-slate-100 hover:text-brand dark:hover:bg-white/10" onClick={() => setOpen("tradeView", { tradeId: t.id })}>
-                            <Eye size={13} /> View
-                          </button>
-                          <button className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-ink-muted hover:bg-slate-100 hover:text-brand dark:hover:bg-white/10" onClick={() => setOpen("trade", { tradeId: t.id })}>
-                            <Pencil size={13} /> Edit
-                          </button>
-                        </div>
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-ink-muted hover:bg-slate-100 hover:text-brand dark:hover:bg-white/10"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setOpen("tradeView", { tradeId: t.id });
+                          }}
+                        >
+                          <Eye size={13} /> View
+                        </button>
                       </td>
                     </tr>
                   ))
@@ -470,43 +485,58 @@ function MonthCalendar({
           <button className="rounded-lg p-1 transition hover:bg-slate-50 hover:text-brand dark:hover:bg-white/10" onClick={onNext}><ChevronRight size={16} /></button>
         </div>
       </div>
-      <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-semibold uppercase tracking-wide text-ink-faint">
-        {["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"].map((d) => <span key={d}>{d}</span>)}
-      </div>
-      <div className="mt-1 grid grid-cols-7 gap-1">
-        {cells.map((cell, i) => {
-          const dayTrades = trades.filter((t) => t.date === cell.iso);
-          const pnl = dayTrades.reduce((s, t) => s + t.pnl, 0);
-          const isToday = cell.iso === TODAY_ISO;
-          const isSel = cell.iso === selected;
-          const wins = dayTrades.filter((t) => t.outcome === "WIN").length;
-          const losses = dayTrades.filter((t) => t.outcome === "LOSS").length;
-          const weekOn = hoverWeek === cell.week;
-          const tint = isSel
-            ? "border-violet-300 bg-violet-50 dark:border-violet-500/40 dark:bg-violet-500/15"
-            : weekOn
-              ? "border-violet-200 bg-violet-50/70 dark:border-violet-500/20 dark:bg-violet-500/10"
-              : cell.other
-                ? "border-transparent bg-slate-50/80 text-ink-faint dark:bg-white/5"
-                : wins && !losses
-                  ? "border-emerald-200 bg-emerald-50/80 dark:border-emerald-500/30 dark:bg-emerald-500/10"
-                  : losses && !wins
-                    ? "border-red-200 bg-red-50/80 dark:border-red-500/30 dark:bg-red-500/10"
-                    : "border-line dark:border-[#243041]";
-          return (
-            <button
-              key={i}
-              onClick={() => onSelect(cell.iso)}
-              className={`dash-cell min-h-[76px] rounded-xl border p-1.5 text-left ${tint}`}
-            >
-              <span className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs ${isToday ? "bg-sky-500 font-semibold text-white" : isSel ? "bg-violet-500 font-semibold text-white" : "text-ink-muted"}`}>
-                {cell.day}
-              </span>
-              <p className={`mt-1 text-[11px] font-semibold ${pnl > 0 ? "text-emerald-600" : pnl < 0 ? "text-loss" : "dark:text-slate-200"}`}>{formatPnl(pnl)}</p>
-              <p className="text-[10px] text-ink-faint">{dayTrades.length} {dayTrades.length === 1 ? "trade" : "trades"}</p>
-            </button>
-          );
-        })}
+      <div className="overflow-hidden rounded-xl border border-line dark:border-[#243041]">
+        <div className="grid grid-cols-7 bg-slate-50 text-center text-[10px] font-semibold uppercase tracking-wide text-ink-faint dark:bg-white/5">
+          {["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"].map((d) => (
+            <span key={d} className="border-b border-r border-line py-2 last:border-r-0 dark:border-[#243041]">{d}</span>
+          ))}
+        </div>
+        <div className="grid grid-cols-7">
+          {cells.map((cell, i) => {
+            const dayTrades = trades.filter((t) => t.date === cell.iso && t.outcome !== "OPEN");
+            const hasTrades = dayTrades.length > 0;
+            const pnl = dayTrades.reduce((s, t) => s + t.pnl, 0);
+            const isToday = cell.iso === TODAY_ISO;
+            const isSel = cell.iso === selected;
+            const weekOn = hoverWeek === cell.week;
+            const tint = isSel
+              ? "bg-violet-50 dark:bg-violet-500/15"
+              : weekOn
+                ? "bg-violet-50/60 dark:bg-violet-500/10"
+                : cell.other
+                  ? "bg-slate-50/70 text-ink-faint dark:bg-white/[0.03]"
+                  : "bg-white dark:bg-transparent";
+            return (
+              <button
+                key={i}
+                onClick={() => onSelect(cell.iso)}
+                className={`dash-cell min-h-[88px] border-b border-r border-line p-2 text-left dark:border-[#243041] ${tint} ${i % 7 === 6 ? "border-r-0" : ""}`}
+              >
+                <span
+                  className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs ${
+                    isToday
+                      ? "bg-brand-gradient font-semibold text-white"
+                      : cell.other
+                        ? "text-ink-faint"
+                        : "font-medium text-ink dark:text-slate-200"
+                  }`}
+                >
+                  {cell.day}
+                </span>
+                {hasTrades ? (
+                  <>
+                    <p className={`mt-1 text-[11px] font-semibold ${pnl > 0 ? "text-emerald-600" : pnl < 0 ? "text-loss" : "text-ink dark:text-slate-200"}`}>
+                      {formatPnl(pnl)}
+                    </p>
+                    <p className="text-[10px] text-ink-faint">
+                      {dayTrades.length} {dayTrades.length === 1 ? "trade" : "trades"}
+                    </p>
+                  </>
+                ) : null}
+              </button>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

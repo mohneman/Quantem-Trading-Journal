@@ -172,3 +172,45 @@ export function outcomeStreak(results: Array<"WIN" | "LOSS" | string>) {
   }
   return `${n}${first === "WIN" ? "W" : "L"}`;
 }
+
+const IMAGE_TYPES = ["image/png", "image/jpeg", "image/jpg", "image/gif", "image/webp"];
+
+export function readLocalImage(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    if (!IMAGE_TYPES.includes(file.type) && !/\.(png|jpe?g|gif|webp)$/i.test(file.name)) {
+      reject(new Error("Please choose a PNG, JPG, GIF, or WEBP image."));
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      reject(new Error("Image is too large. Use a file under 8 MB."));
+      return;
+    }
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("Could not read that file."));
+    reader.onload = () => {
+      const raw = String(reader.result || "");
+      if (file.size <= 900_000) {
+        resolve(raw);
+        return;
+      }
+      const img = new Image();
+      img.onload = () => {
+        const max = 1600;
+        const scale = Math.min(1, max / Math.max(img.width, img.height));
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.max(1, Math.round(img.width * scale));
+        canvas.height = Math.max(1, Math.round(img.height * scale));
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          resolve(raw);
+          return;
+        }
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL("image/jpeg", 0.82));
+      };
+      img.onerror = () => resolve(raw);
+      img.src = raw;
+    };
+    reader.readAsDataURL(file);
+  });
+}

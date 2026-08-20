@@ -894,7 +894,7 @@ export function MindMapCanvasPage() {
       ctx.restore();
       ctx.fillStyle = b.n.textColor || (b.n.parentId && b.n.type === "topic" ? "#1e293b" : "#ffffff");
       if (b.n.type === "note") ctx.fillStyle = "#1e293b";
-      ctx.font = `${b.n.bold ? "600" : "500"} ${b.n.fontSize ?? 15}px Inter, sans-serif`;
+      ctx.font = `${b.n.bold ? "600" : "500"} ${b.n.fontSize ?? 15}px "Plus Jakarta Sans", Inter, sans-serif`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.fillText(b.n.text || "", x + b.w / 2, y + b.h / 2, b.w - 16);

@@ -1,4 +1,5 @@
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useSearchParams } from "react-router-dom";
+import { useEffect } from "react";
 import { AppLayout } from "./components/layout/AppLayout";
 import { AnalyticsPage } from "./pages/AnalyticsPage";
 import { ForgotPage, LoginPage, ResetPage, SignupPage } from "./pages/AuthPages";
@@ -24,6 +25,15 @@ import {
 import { TradesPage } from "./pages/TradesPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { useStore } from "./store";
+import { captureReferralCode } from "./lib/referral";
+
+function ReferralCapture() {
+  const [params] = useSearchParams();
+  useEffect(() => {
+    captureReferralCode(params.get("ref"));
+  }, [params]);
+  return null;
+}
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { session } = useStore();
@@ -39,7 +49,9 @@ function RequireSuperAdmin({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   return (
-    <Routes>
+    <>
+      <ReferralCapture />
+      <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<SignupPage />} />
       <Route path="/forgot" element={<ForgotPage />} />
@@ -79,5 +91,6 @@ export default function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
+    </>
   );
 }

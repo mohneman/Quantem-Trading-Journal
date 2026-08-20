@@ -1,8 +1,13 @@
-import { useState } from "react";
-import { Eye, EyeOff, Lock, Mail, UserRound } from "lucide-react";
+import { useEffect, useState, type FormEvent } from "react";
+import { CircleAlert, Eye, EyeOff, Lock, Mail, UserRound } from "lucide-react";
 import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
-import { useStore } from "../store";
+import { APPROVAL_MSG, useStore } from "../store";
+import { googleClientConfigured, signInWithGoogle } from "../lib/googleAuth";
+import { peekReferralCode } from "../lib/referral";
 import { LogoMark } from "../components/ui/Logo";
+import { Modal } from "../components/ui/Modal";
+import { Field, Input } from "../components/ui/Field";
+import { Button } from "../components/ui/Button";
 
 export function LoginPage() {
   const { session, login, googleContinue } = useStore();
@@ -11,8 +16,27 @@ export function LoginPage() {
   const [password, setPassword] = useState("quantum");
   const [show, setShow] = useState(false);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [googleOpen, setGoogleOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
 
   if (session) return <Navigate to="/" replace />;
+
+  function finishGoogle(profile: { name: string; email: string }) {
+    void (async () => {
+      const res = await googleContinue(profile);
+      if (res.awaitingApproval || res.error === APPROVAL_MSG) {
+        setNotice(APPROVAL_MSG);
+        setError("");
+        return;
+      }
+      if (res.error) {
+        setError(res.error);
+        return;
+      }
+      nav("/", { replace: true });
+    })();
+  }
 
   return (
     <AuthShell>
@@ -20,11 +44,18 @@ export function LoginPage() {
       <p className="mt-1 text-sm text-ink-muted">Enter your credentials to sign in to your account</p>
       <form
         className="mt-8 space-y-4"
-        onSubmit={(e) => {
+        onSubmit={async (e) => {
           e.preventDefault();
-          const err = login(email, password);
-          if (err) setError(err);
-          else nav("/", { replace: true });
+          const err = await login(email, password);
+          if (err === APPROVAL_MSG) {
+            setNotice(APPROVAL_MSG);
+            setError("");
+          } else if (err) {
+            setError(err);
+            setNotice("");
+          } else {
+            nav("/", { replace: true });
+          }
         }}
       >
         <label className="block">
@@ -61,10 +92,25 @@ export function LoginPage() {
         <span className="h-px flex-1 bg-line" />
       </div>
       <button
+        type="button"
         className="btn-ghost h-12 w-full"
-        onClick={() => {
-          googleContinue();
-          nav("/", { replace: true });
+        disabled={busy}
+        onClick={async () => {
+          setError("");
+          if (!googleClientConfigured()) {
+            setGoogleOpen(true);
+            return;
+          }
+          setBusy(true);
+          try {
+            finishGoogle(await signInWithGoogle());
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : "";
+            if (msg === "NO_CLIENT" || msg.includes("unavailable")) setGoogleOpen(true);
+            else setError(msg || "Google sign-in failed.");
+          } finally {
+            setBusy(false);
+          }
         }}
       >
         <GoogleMark /> Continue with Google
@@ -81,30 +127,75 @@ export function LoginPage() {
           Sign up
         </Link>
       </p>
+      {googleOpen ? (
+        <GoogleAccountModal
+          onClose={() => setGoogleOpen(false)}
+          onContinue={(profile) => {
+            setGoogleOpen(false);
+            finishGoogle(profile);
+          }}
+        />
+      ) : null}
+      {notice ? <ApprovalPrompt message={notice} onClose={() => setNotice("")} /> : null}
     </AuthShell>
   );
 }
 
 export function SignupPage() {
-  const { session, signup } = useStore();
+  const { session, signup, googleContinue } = useStore();
   const nav = useNavigate();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [googleOpen, setGoogleOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [refCode, setRefCode] = useState("");
+
+  useEffect(() => {
+    setRefCode(peekReferralCode());
+  }, []);
+
   if (session) return <Navigate to="/" replace />;
+
+  function finishGoogle(profile: { name: string; email: string }) {
+    void (async () => {
+      const res = await googleContinue(profile);
+      if (res.awaitingApproval || res.error === APPROVAL_MSG) {
+        setNotice(APPROVAL_MSG);
+        setError("");
+        return;
+      }
+      if (res.error) {
+        setError(res.error);
+        return;
+      }
+      nav("/", { replace: true });
+    })();
+  }
 
   return (
     <AuthShell>
       <h1 className="text-3xl font-bold text-ink">Sign up</h1>
-      <p className="mt-1 text-sm text-ink-muted">Create your Quantum journal in seconds.</p>
+      <p className="mt-1 text-sm text-ink-muted">Create your Quantum journal. A super admin must approve access before you can log in.</p>
+      {refCode ? (
+        <p className="mt-3 rounded-xl bg-brand/10 px-3 py-2 text-sm text-brand">
+          Referral code applied: <span className="font-mono font-semibold">{refCode}</span>
+        </p>
+      ) : null}
       <form
         className="mt-8 space-y-4"
-        onSubmit={(e) => {
+        onSubmit={async (e) => {
           e.preventDefault();
-          const err = signup({ name, email, password });
-          if (err) setError(err);
-          else nav("/", { replace: true });
+          const res = await signup({ name, email, password });
+          if (res.awaitingApproval || res.error === APPROVAL_MSG) {
+            setNotice(APPROVAL_MSG);
+            setError("");
+          } else if (res.error) {
+            setError(res.error);
+            setNotice("");
+          }
         }}
       >
         <label className="block">
@@ -127,12 +218,51 @@ export function SignupPage() {
           Create account
         </button>
       </form>
+      <div className="my-6 flex items-center gap-3 text-[11px] font-semibold tracking-[0.14em] text-ink-faint">
+        <span className="h-px flex-1 bg-line" />
+        OR CONTINUE WITH
+        <span className="h-px flex-1 bg-line" />
+      </div>
+      <button
+        type="button"
+        className="btn-ghost h-12 w-full"
+        disabled={busy}
+        onClick={async () => {
+          setError("");
+          if (!googleClientConfigured()) {
+            setGoogleOpen(true);
+            return;
+          }
+          setBusy(true);
+          try {
+            finishGoogle(await signInWithGoogle());
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : "";
+            if (msg === "NO_CLIENT" || msg.includes("unavailable")) setGoogleOpen(true);
+            else setError(msg || "Google sign-in failed.");
+          } finally {
+            setBusy(false);
+          }
+        }}
+      >
+        <GoogleMark /> Continue with Google
+      </button>
       <p className="mt-6 text-sm text-ink-muted">
         Already have an account?{" "}
         <Link to="/login" className="font-semibold text-brand">
           Login
         </Link>
       </p>
+      {googleOpen ? (
+        <GoogleAccountModal
+          onClose={() => setGoogleOpen(false)}
+          onContinue={(profile) => {
+            setGoogleOpen(false);
+            finishGoogle(profile);
+          }}
+        />
+      ) : null}
+      {notice ? <ApprovalPrompt message={notice} onClose={() => setNotice("")} /> : null}
     </AuthShell>
   );
 }
@@ -148,12 +278,12 @@ export function ForgotPage() {
   return (
     <AuthShell>
       <h1 className="text-3xl font-bold text-ink">Reset password</h1>
-      <p className="mt-1 text-sm text-ink-muted">We'll generate a local reset code for this device.</p>
+      <p className="mt-1 text-sm text-ink-muted">Enter your email. We'll email a reset code when mail is available, and also show it here.</p>
       <form
         className="mt-8 space-y-4"
-        onSubmit={(e) => {
+        onSubmit={async (e) => {
           e.preventDefault();
-          const res = requestReset(email);
+          const res = await requestReset(email);
           if (res.error) {
             setError(res.error);
             setSent("");
@@ -200,6 +330,7 @@ export function ResetPage() {
   const [token, setToken] = useState(params.get("code") ?? "");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   if (session) return <Navigate to="/" replace />;
 
   return (
@@ -208,11 +339,17 @@ export function ResetPage() {
       <p className="mt-1 text-sm text-ink-muted">Enter the reset code from the previous step.</p>
       <form
         className="mt-8 space-y-4"
-        onSubmit={(e) => {
+        onSubmit={async (e) => {
           e.preventDefault();
-          const err = resetPassword(email, token, password);
-          if (err) setError(err);
-          else nav("/", { replace: true });
+          const err = await resetPassword(email, token, password);
+          if (err === APPROVAL_MSG) {
+            setNotice(APPROVAL_MSG);
+            setError("");
+          } else if (err) {
+            setError(err);
+          } else {
+            nav("/", { replace: true });
+          }
         }}
       >
         <label className="block">
@@ -232,7 +369,69 @@ export function ResetPage() {
           Save password
         </button>
       </form>
+      {notice ? <ApprovalPrompt message={notice} onClose={() => setNotice("")} /> : null}
     </AuthShell>
+  );
+}
+
+function ApprovalPrompt({ message, onClose }: { message: string; onClose: () => void }) {
+  return (
+    <Modal title="Account pending" subtitle="A super admin has to approve this account first." onClose={onClose} glow>
+      <div className="flex items-start gap-3">
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-amber-50 text-amber-600 dark:bg-amber-500/15">
+          <CircleAlert size={18} />
+        </span>
+        <p className="text-sm font-medium text-ink dark:text-white">{message}</p>
+      </div>
+      <div className="mt-5 flex justify-end">
+        <Button variant="gradient" onClick={onClose}>
+          OK
+        </Button>
+      </div>
+    </Modal>
+  );
+}
+
+function GoogleAccountModal({
+  onClose,
+  onContinue,
+}: {
+  onClose: () => void;
+  onContinue: (profile: { name: string; email: string }) => void;
+}) {
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [error, setError] = useState("");
+
+  function submit(e: FormEvent) {
+    e.preventDefault();
+    if (!name.trim() || !email.trim()) {
+      setError("Name and Google email are required.");
+      return;
+    }
+    onContinue({ name: name.trim(), email: email.trim() });
+  }
+
+  return (
+    <Modal title="Continue with Google" subtitle="Use the Google account you want to register." onClose={onClose} glow>
+      <form className="space-y-4" onSubmit={submit}>
+        <Field label="Name">
+          <Input value={name} onChange={(e) => setName(e.target.value)} required />
+        </Field>
+        <Field label="Google email">
+          <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+        </Field>
+        {error ? <p className="text-sm text-loss">{error}</p> : null}
+        <div className="flex justify-end gap-2 pt-1">
+          <Button variant="ghost" type="button" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button variant="gradient" type="submit">
+            Continue
+          </Button>
+        </div>
+      </form>
+    </Modal>
   );
 }
 

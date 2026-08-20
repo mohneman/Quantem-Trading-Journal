@@ -1,6 +1,11 @@
 # Quantum Trading Journal
 
-Progressive Web App for journaling trades, daily notes, mind maps, analytics, and prop payouts. Data stays in the browser (`localStorage`).
+Progressive Web App for journaling trades, daily notes, mind maps, analytics, and prop payouts.
+
+- **System documentation:** [docs/SYSTEM.md](docs/SYSTEM.md)
+- **Yegara / cPanel hosting:** [docs/HOSTING-CPANEL.md](docs/HOSTING-CPANEL.md)
+
+Data is stored in MySQL on cPanel (`quantum_db`). Local development falls back to the browser if the PHP API is not running.
 
 ## Local development
 
@@ -11,34 +16,19 @@ npm run dev
 
 Open http://localhost:5173/
 
-Demo login: `nejahseid750@gmail.com` / `quantum`
+| Account | Email | Password |
+| --- | --- | --- |
+| Demo trader | `nejahseid750@gmail.com` | `quantum` |
+| Super admin | `admin@quantum.local` | `quantum-admin` |
 
-## Production build (Yegara / cPanel)
+Optional: copy `.env.example` to `.env.local` and set `VITE_GOOGLE_CLIENT_ID`.
+
+## Production build
 
 ```bash
 npm run build
 ```
 
-Upload **everything inside `dist/`** to `public_html` (or a subdirectory) via Yegara File Manager or FTP.
-
-- Vite `base` is `./` so asset URLs work in a subdirectory.
-- `dist/.htaccess` rewrites unknown paths to `index.html` (Apache SPA fallback).
-- Routing uses a hash URL (`/#/analytics`) so the app also works if rewrite rules are unavailable.
-
-### cPanel upload checklist
-
-1. Run `npm run build` on your computer.
-2. Zip the contents of `dist/` (including `index.html`, `assets/`, `.htaccess`, `sw.js`, `manifest.webmanifest`).
-3. In cPanel → File Manager → `public_html`, upload and extract.
-4. Visit your domain. First load may prompt to install the PWA.
-5. If styles 404 in a subdirectory, confirm `.htaccess` was uploaded (dotfiles can be hidden in File Manager — enable “Show Hidden Files”).
-
-## Features
-
-- Auth: login, signup, forgot/reset password, Google continue (local session)
-- Accounts, trades, journals, notes, mind maps, checklists, payouts, backtests
-- Dashboard calendar click → Day Details
-- Analytics filters + print/PDF export
-- Dark mode and profile settings
+Upload **everything inside `dist/`** to the subdomain document root (see the hosting guide). Include hidden `.htaccess` and the `api/` PHP files.
 
 Powered by Amiinhub. UI branding: Quantum / Quantum Trading Journal.

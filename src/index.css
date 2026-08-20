@@ -306,6 +306,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 
 .trade-row {
+  cursor: pointer;
   transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
 }
 

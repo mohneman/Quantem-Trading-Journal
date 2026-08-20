@@ -1,19 +1,18 @@
 import { NavLink, useLocation } from "react-router-dom";
 import {
-  LayoutDashboard,
+  LayoutGrid,
   BookOpen,
-  NotebookPen,
-  Wallet,
-  StickyNote,
+  BookMarked,
+  Briefcase,
+  SquarePen,
   BarChart3,
-  CalendarDays,
+  Globe,
   Calculator,
-  Ticket,
-  FlaskConical,
-  LineChart,
-  Banknote,
-  ScrollText,
-  Handshake,
+  Tag,
+  TrendingUp,
+  ChartColumn,
+  FileChartColumn,
+  Users,
   Menu,
   X,
   ChevronRight,
@@ -27,39 +26,39 @@ const groups = [
   {
     label: "",
     items: [
-      { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
+      { to: "/", label: "Dashboard", icon: LayoutGrid, end: true },
       { to: "/journals", label: "Daily Journal", icon: BookOpen },
-      { to: "/trades", label: "Trading Journal", icon: NotebookPen },
-      { to: "/portfolio", label: "My Portfolio", icon: Wallet },
-      { to: "/notebook", label: "Notebook", icon: StickyNote },
+      { to: "/trades", label: "Trading Journal", icon: BookMarked },
+      { to: "/portfolio", label: "My Portfolio", icon: Briefcase },
+      { to: "/notebook", label: "Notebook", icon: SquarePen },
       { to: "/analytics", label: "Analytics", icon: BarChart3 },
     ],
   },
   {
     label: "TOOLS",
     items: [
-      { to: "/calendar", label: "Economic Calendar", icon: CalendarDays },
+      { to: "/calendar", label: "Economic Calendar", icon: Globe },
       { to: "/calculator", label: "Position Calculator", icon: Calculator },
-      { to: "/coupons", label: "Coupons", icon: Ticket },
+      { to: "/coupons", label: "Coupons", icon: Tag },
     ],
   },
   {
     label: "BACKTESTING AREA",
     items: [
-      { to: "/backtests", label: "Backtested Trades", icon: FlaskConical },
-      { to: "/stats", label: "Statistics Center", icon: LineChart },
+      { to: "/backtests", label: "Backtested Trades", icon: TrendingUp },
+      { to: "/stats", label: "Statistics Center", icon: ChartColumn },
     ],
   },
   {
     label: "PAYOUTS",
     items: [
-      { to: "/payouts", label: "Dashboard", icon: Banknote },
-      { to: "/payout-journal", label: "Payout Journal", icon: ScrollText },
+      { to: "/payouts", label: "Dashboard", icon: LayoutGrid },
+      { to: "/payout-journal", label: "Payout Journal", icon: FileChartColumn },
     ],
   },
   {
     label: "PARTNERS",
-    items: [{ to: "/affiliate", label: "Affiliate Program", icon: Handshake }],
+    items: [{ to: "/affiliate", label: "Affiliate Program", icon: Users }],
   },
 ];
 
@@ -118,16 +117,17 @@ export function Sidebar({ open, onClose }: Props) {
                         onClick={onClose}
                         className={`relative flex items-center gap-2.5 rounded-xl px-3 py-2 text-[13.5px] font-medium transition-all duration-200 ${
                           active
-                            ? "bg-brand/10 text-ink shadow-soft dark:bg-brand/15 dark:text-white"
+                            ? "bg-white text-ink shadow-soft dark:bg-white/10 dark:text-white"
                             : "text-ink-muted hover:translate-x-0.5 hover:bg-slate-50 hover:text-ink dark:hover:bg-white/5 dark:hover:text-white"
                         }`}
                       >
                         {active ? (
-                          <span className="absolute left-0 top-1.5 h-[70%] w-[3px] rounded-r-full bg-brand" />
+                          <span className="absolute left-0 top-1.5 h-[70%] w-[3px] rounded-r-full bg-brand-gradient" />
                         ) : null}
                         <Icon
                           size={16}
-                          className={active ? "text-brand" : "text-slate-400"}
+                          strokeWidth={1.75}
+                          className={active ? "text-ink dark:text-white" : "text-slate-500"}
                         />
                         {item.label}
                         {active ? (

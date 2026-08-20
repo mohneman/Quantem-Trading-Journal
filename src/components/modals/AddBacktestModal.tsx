@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
-import { Check, Link2, Plus, TrendingDown, TrendingUp } from "lucide-react";
+import { Check, Plus, TrendingDown, TrendingUp } from "lucide-react";
 import { Modal } from "../ui/Modal";
 import { Field, Input, Select, TextArea } from "../ui/Field";
 import { Button } from "../ui/Button";
+import { ImageProofField } from "../ui/ImageProofField";
 import { defaultChecklist, TODAY_ISO } from "../../data";
 import { useStore } from "../../store";
 import { useToast } from "../../context/ToastContext";
@@ -29,8 +30,6 @@ export function AddBacktestModal({ onClose, backtestId }: { onClose: () => void;
   const [sl, setSl] = useState(existing?.slPips ?? "");
   const [tp, setTp] = useState(existing?.tpPips ?? "");
   const [notes, setNotes] = useState(existing?.notes ?? "");
-  const [chart5, setChart5] = useState(existing?.chart5 ?? "");
-  const [chart15, setChart15] = useState(existing?.chart15 ?? "");
   const [applied5, setApplied5] = useState(existing?.chart5 ?? "");
   const [applied15, setApplied15] = useState(existing?.chart15 ?? "");
   const [showChecklist, setShowChecklist] = useState(false);
@@ -143,8 +142,8 @@ export function AddBacktestModal({ onClose, backtestId }: { onClose: () => void;
         <div>
           <p className="mb-3 font-semibold dark:text-white">Chart Snapshots</p>
           <div className="grid gap-3 sm:grid-cols-2">
-            <Snap label="5MIN CHART" color="bg-blue-500" applyClass="bg-blue-500 hover:bg-blue-600" value={chart5} onChange={setChart5} applied={applied5} onApply={() => setApplied5(chart5)} />
-            <Snap label="15MIN CHART" color="bg-brand" applyClass="bg-brand hover:bg-brand-600" value={chart15} onChange={setChart15} applied={applied15} onApply={() => setApplied15(chart15)} />
+            <Snap label="5MIN CHART" color="bg-blue-500" applyClass="bg-blue-500 hover:bg-blue-600" value={applied5} onChange={setApplied5} />
+            <Snap label="15MIN CHART" color="bg-brand" applyClass="bg-brand hover:bg-brand-600" value={applied15} onChange={setApplied15} />
           </div>
         </div>
 
@@ -223,23 +222,22 @@ export function AddBacktestModal({ onClose, backtestId }: { onClose: () => void;
 }
 
 function Snap({
-  label, color, applyClass, value, onChange, applied, onApply,
+  label, color, applyClass, value, onChange,
 }: {
-  label: string; color: string; applyClass: string; value: string; onChange: (v: string) => void; applied: string; onApply: () => void;
+  label: string; color: string; applyClass: string; value: string; onChange: (v: string) => void;
 }) {
   return (
     <div className="rounded-xl border border-line p-3 dark:border-[#243041]">
       <p className="mb-2 flex items-center gap-2 text-xs font-semibold">
         <span className={`h-2 w-2 rounded-full ${color}`} /> {label}
       </p>
-      <div className="flex gap-2">
-        <div className="relative flex-1">
-          <Link2 size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-faint" />
-          <Input className="pl-9" placeholder="Paste image URL" value={value} onChange={(e) => onChange(e.target.value)} />
-        </div>
-        <button className={`btn h-11 px-3 text-xs text-white ${applyClass}`} type="button" onClick={onApply}>Apply</button>
-      </div>
-      {applied ? <img src={applied} alt="" className="mt-2 max-h-28 rounded-lg" /> : null}
+      <ImageProofField
+        compact
+        placeholder="Paste image URL"
+        applyClass={applyClass}
+        value={value}
+        onChange={onChange}
+      />
     </div>
   );
 }

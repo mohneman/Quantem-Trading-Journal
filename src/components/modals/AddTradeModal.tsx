@@ -2,8 +2,6 @@ import { useMemo, useState } from "react";
 import {
   AlertCircle,
   Check,
-  Image as ImageIcon,
-  Link2,
   List,
   MapPin,
   Plus,
@@ -12,10 +10,12 @@ import {
   Wallet,
   X,
   Zap,
+  Link2,
 } from "lucide-react";
 import { Modal } from "../ui/Modal";
 import { Field, Input, Select, TextArea } from "../ui/Field";
 import { Button } from "../ui/Button";
+import { ImageProofField } from "../ui/ImageProofField";
 import { defaultChecklist, psychologyTags, TODAY_ISO } from "../../data";
 import { useStore } from "../../store";
 import { useModal } from "../../context/ModalContext";
@@ -46,7 +46,6 @@ export function AddTradeModal({ onClose, tradeId, initialDate }: { onClose: () =
   const [sl, setSl] = useState(existing?.slPips ?? "");
   const [tp, setTp] = useState(existing?.tpPips ?? "");
   const [notes, setNotes] = useState(existing?.notes ?? "");
-  const [proof, setProof] = useState(existing?.proofUrl ?? "");
   const [applied, setApplied] = useState(existing?.proofUrl ?? "");
   const [accounts, setAccounts] = useState<string[]>(existing?.accountIds ?? []);
   const [newPair, setNewPair] = useState("");
@@ -274,33 +273,7 @@ export function AddTradeModal({ onClose, tradeId, initialDate }: { onClose: () =
 
         <div>
           <p className="mb-2 font-semibold dark:text-white">Proof / Chart Snapshots</p>
-          <div className="flex gap-2">
-            <div className="relative flex-1">
-              <Link2 size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-faint" />
-              <Input className="pl-10" placeholder="Paste direct image link (e.g. https://i.imgur.com/abc123.png)" value={proof} onChange={(e) => setProof(e.target.value)} />
-            </div>
-            <button className="btn-primary" onClick={() => setApplied(proof)}>
-              <ImageIcon size={15} /> Apply
-            </button>
-          </div>
-          <p className="mt-1 text-[11px] text-ink-faint">
-            Tip: Right-click any image on the web → Copy image address to get a direct link. URLs should end with .png, .jpg, .gif, or .webp.
-          </p>
-          {applied ? (
-            <div className="relative mt-2 inline-block">
-              <img src={applied} alt="Proof" className="max-h-40 rounded-xl" />
-              <button
-                type="button"
-                className="absolute right-2 top-2 grid h-7 w-7 place-items-center rounded-full bg-loss text-white shadow-soft"
-                onClick={() => {
-                  setApplied("");
-                  setProof("");
-                }}
-              >
-                <X size={12} />
-              </button>
-            </div>
-          ) : null}
+          <ImageProofField value={applied} onChange={setApplied} />
         </div>
 
         <div>

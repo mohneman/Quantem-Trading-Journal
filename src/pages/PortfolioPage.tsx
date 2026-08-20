@@ -85,14 +85,9 @@ export function PortfolioPage() {
             <h2 className="mt-2 text-2xl font-semibold dark:text-white">Portfolio</h2>
             <p className="mt-1 text-sm text-ink-muted">Manage your trading accounts</p>
           </div>
-          <div className="flex gap-2">
-            <button className="btn-ghost rounded-full" onClick={() => setOpen("propAccount")}>
-              + Prop
-            </button>
-            <button className="btn-gradient rounded-full shadow-[0_8px_20px_rgba(0,209,193,0.28)]" onClick={() => setOpen("account")}>
-              <Plus size={16} /> Add Account
-            </button>
-          </div>
+          <button className="btn-gradient rounded-full shadow-[0_8px_20px_rgba(0,209,193,0.28)]" onClick={() => setOpen("account")}>
+            <Plus size={16} /> Add Account
+          </button>
         </div>
 
         {data.accounts.length === 0 ? (

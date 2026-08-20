@@ -1,11 +1,10 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import {
   BookOpen,
   CalendarDays,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
-  Drama,
   FileText,
   Flame,
   Plus,
@@ -19,7 +18,7 @@ import { moodMonth, TODAY_ISO } from "../data";
 import { useMenu } from "../hooks";
 import { useModal } from "../context/ModalContext";
 import { useStore, type Journal } from "../store";
-import { addDays, journalPreview, uid, weekdayShort } from "../lib";
+import { addDays, uid, weekdayShort } from "../lib";
 
 const moodEmoji: Record<string, string> = {
   Excited: "🤩",
@@ -27,14 +26,25 @@ const moodEmoji: Record<string, string> = {
   Calm: "😌",
   Sad: "🥺",
   Annoyed: "😒",
+  Okay: "😐",
 };
 
 const moodTone: Record<string, string> = {
-  Excited: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300",
-  Happy: "bg-lime-100 text-lime-700 dark:bg-lime-500/20 dark:text-lime-300",
+  Excited: "bg-fuchsia-100 text-fuchsia-700 dark:bg-fuchsia-500/20 dark:text-fuchsia-300",
+  Happy: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300",
   Calm: "bg-teal-100 text-teal-700 dark:bg-teal-500/20 dark:text-teal-300",
   Sad: "bg-sky-100 text-sky-700 dark:bg-sky-500/20 dark:text-sky-300",
-  Annoyed: "bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300",
+  Annoyed: "bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-300",
+  Okay: "bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300",
+};
+
+const moodIconBg: Record<string, string> = {
+  Excited: "bg-fuchsia-100",
+  Happy: "bg-sky-100",
+  Calm: "bg-emerald-100",
+  Sad: "bg-blue-100",
+  Annoyed: "bg-orange-100",
+  Okay: "bg-amber-100",
 };
 
 export function JournalsPage() {
@@ -108,16 +118,20 @@ export function JournalsPage() {
           <div className="space-y-5">
             <div className="card overflow-hidden p-4">
               <div className="mb-1 flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <FileText size={16} className="text-brand" />
-                  <h3 className="font-semibold dark:text-white">Recent Days</h3>
+                <div className="flex items-center gap-2.5">
+                  <span className="grid h-9 w-9 place-items-center rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-300">
+                    <FileText size={16} />
+                  </span>
+                  <div>
+                    <h3 className="font-semibold dark:text-white">Recent Days</h3>
+                    <p className="text-xs text-ink-muted">Your latest journal records</p>
+                  </div>
                 </div>
                 <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-ink-muted dark:bg-white/10">
                   {journals.length} {journals.length === 1 ? "day" : "days"}
                 </span>
               </div>
-              <p className="mb-3 text-xs text-ink-muted">Your latest journal records.</p>
-              <div className="overflow-x-auto">
+              <div className="mt-4 overflow-x-auto">
                 <table className="min-w-full text-left text-sm">
                   <thead>
                     <tr className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">
@@ -273,47 +287,45 @@ export function JournalsPage() {
 }
 
 function JournalRow({ journal: j, onOpen }: { journal: Journal; onOpen: () => void }) {
-  const preview = useMemo(() => journalPreview(j), [j]);
   const d = new Date(`${j.date}T12:00:00`);
   const mon = d.toLocaleString("en-US", { month: "short" }).toUpperCase();
   const day = String(d.getDate());
+  const emoji = moodEmoji[j.mood] ?? "🙂";
   return (
-    <tr
-      onClick={onOpen}
-      className="journal-row cursor-pointer align-middle"
-    >
+    <tr onClick={onOpen} className="journal-row cursor-pointer border-t border-line align-middle dark:border-[#243041]">
       <td className="py-3 pr-3">
-        <div className="flex items-start gap-2.5">
-          <span className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-full bg-rose-100 text-rose-500 dark:bg-rose-500/20">
-            <Drama size={16} />
+        <div className="flex items-center gap-2.5">
+          <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl text-lg ${moodIconBg[j.mood] ?? "bg-slate-100"}`}>
+            {emoji}
           </span>
-          <div className="min-w-0">
-            <p className="font-medium capitalize dark:text-white">{j.title || "untitled"}</p>
-            {preview ? <p className="mt-0.5 max-w-[220px] truncate text-[11px] text-ink-faint">{preview}</p> : null}
+          <p className="font-medium dark:text-white">{j.title || "Journal Day"}</p>
+        </div>
+      </td>
+      <td className="py-3 pr-3">
+        <div className="flex items-center gap-2.5">
+          <span className="flex h-12 w-11 flex-col items-center justify-center rounded-xl bg-slate-100 dark:bg-white/10">
+            <span className="text-[9px] font-semibold uppercase tracking-wide text-ink-faint">{mon}</span>
+            <span className="text-sm font-bold leading-none text-ink dark:text-white">{day}</span>
+          </span>
+          <span className="text-sm text-ink-muted">{weekdayShort(j.date)}</span>
+        </div>
+      </td>
+      <td className="py-3 pr-3">
+        {j.tags.length ? (
+          <div className="flex flex-wrap gap-1.5">
+            {j.tags.map((t) => (
+              <span key={t} className="rounded-full border border-line bg-white px-2.5 py-0.5 text-[11px] text-ink-muted dark:border-[#243041] dark:bg-white/5">
+                {t}
+              </span>
+            ))}
           </div>
-        </div>
-      </td>
-      <td className="py-3 pr-3">
-        <div className="flex flex-col items-center">
-          <span className="grid h-11 w-11 place-items-center rounded-full bg-emerald-100 text-center text-[10px] font-bold leading-tight text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300">
-            {mon}
-            <span className="text-xs">{day}</span>
-          </span>
-          <span className="mt-1 text-[10px] font-medium text-ink-faint">{weekdayShort(j.date)}</span>
-        </div>
-      </td>
-      <td className="py-3 pr-3">
-        <div className="flex flex-wrap gap-1.5">
-          {j.tags.map((t) => (
-            <span key={t} className="rounded-full border border-line bg-white px-2 py-0.5 text-[11px] text-ink-muted dark:border-[#243041] dark:bg-white/5">
-              {t}
-            </span>
-          ))}
-        </div>
+        ) : (
+          <span className="text-ink-faint">—</span>
+        )}
       </td>
       <td className="py-3">
         <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${moodTone[j.mood] ?? "bg-slate-100 text-ink-muted"}`}>
-          {moodEmoji[j.mood] ?? "🙂"} {j.mood}
+          {emoji} {j.mood}
         </span>
       </td>
     </tr>

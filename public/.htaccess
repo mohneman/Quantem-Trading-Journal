@@ -1,5 +1,11 @@
 <IfModule mod_rewrite.c>
   RewriteEngine On
+  RewriteBase /
+
+  RewriteRule ^api/prop-deals/?$ api/prop-deals.php [L,QSA]
+  RewriteRule ^api/myfxbook/forex-economic-calendar/?$ api/myfxbook-calendar.php [L,QSA]
+  RewriteRule ^api/(.*)$ api/index.php?r=$1 [L,QSA]
+
   RewriteRule ^index\.html$ - [L]
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteCond %{REQUEST_FILENAME} !-d
@@ -7,3 +13,7 @@
 </IfModule>
 
 DirectoryIndex index.html
+
+<IfModule mod_headers.c>
+  Header set X-Content-Type-Options "nosniff"
+</IfModule>

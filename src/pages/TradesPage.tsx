@@ -4,7 +4,6 @@ import {
   Eye,
   Layers,
   Medal,
-  Pencil,
   Plus,
   Search,
   TrendingDown,
@@ -230,7 +229,10 @@ function TradeRow({ t }: { t: Trade }) {
   const checked = t.rules.filter((r) => r.checked).length;
   const dots = Math.max(5, t.rules.length);
   return (
-    <tr className="trade-row bg-white dark:bg-[#1b2330]">
+    <tr
+      className="trade-row cursor-pointer bg-white dark:bg-[#1b2330]"
+      onClick={() => setOpen("tradeView", { tradeId: t.id })}
+    >
       <td className="rounded-l-2xl px-4 py-3.5 font-semibold dark:text-white">#{t.no}</td>
       <td className="px-4 py-3.5 text-ink-muted">{t.date}</td>
       <td className="px-4 py-3.5">
@@ -291,23 +293,25 @@ function TradeRow({ t }: { t: Trade }) {
         <div className="flex items-center gap-1">
           {t.outcome === "OPEN" ? (
             <button
+              type="button"
               className="inline-flex items-center gap-1.5 rounded-lg bg-brand/10 px-2.5 py-1 text-xs font-semibold text-brand transition hover:-translate-y-0.5 hover:bg-brand/15"
-              onClick={() => setOpen("tradeOutcome", { tradeId: t.id })}
+              onClick={(e) => {
+                e.stopPropagation();
+                setOpen("tradeOutcome", { tradeId: t.id });
+              }}
             >
               Log outcome
             </button>
           ) : null}
           <button
+            type="button"
             className="inline-flex items-center gap-1.5 rounded-lg border border-line px-2.5 py-1 text-xs font-medium text-ink-muted transition hover:-translate-y-0.5 hover:border-brand/40 hover:text-brand hover:shadow-soft dark:border-[#243041]"
-            onClick={() => setOpen("tradeView", { tradeId: t.id })}
+            onClick={(e) => {
+              e.stopPropagation();
+              setOpen("tradeView", { tradeId: t.id });
+            }}
           >
             <Eye size={14} /> View
-          </button>
-          <button
-            className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-medium text-ink-muted transition hover:-translate-y-0.5 hover:bg-slate-50 hover:text-brand dark:hover:bg-white/10"
-            onClick={() => setOpen("trade", { tradeId: t.id })}
-          >
-            <Pencil size={13} /> Edit
           </button>
         </div>
       </td>

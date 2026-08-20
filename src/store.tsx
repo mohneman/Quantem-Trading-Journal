@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -13,6 +14,11 @@ import {
   user as seedUser,
 } from "./data";
 import { gradeFromChecked, initialsOf, rrFromPips, uid } from "./lib";
+import { APPROVAL_MSG, type GoogleProfile } from "./lib/googleAuth";
+import { consumeReferralCode, makeReferralCode, referralSignupLink } from "./lib/referral";
+import * as api from "./lib/api";
+
+export { APPROVAL_MSG };
 
 export type AccountType = "Prop" | "Personal" | "Real Account" | "Demo";
 
@@ -159,6 +165,7 @@ export type Coupon = {
   firm: string;
   code: string;
   discount: string;
+  details?: string;
   url: string;
   expiry: string;
 };
@@ -174,7 +181,8 @@ export type Profile = {
 };
 
 export type UserRole = "superadmin" | "trader";
-export type UserStatus = "active" | "disabled";
+export type UserStatus = "pending" | "active" | "disabled";
+export type AuthResult = { error: string | null; awaitingApproval?: boolean };
 
 export type AuthUser = {
   id: string;
@@ -186,6 +194,8 @@ export type AuthUser = {
   role: UserRole;
   status: UserStatus;
   createdAt: string;
+  referralCode: string;
+  referredByCode?: string;
   resetToken?: string;
 };
 
@@ -334,6 +344,7 @@ function seedData(profile: Profile): StoreData {
         code: "QUANTUM10",
         discount: "10% off",
         url: "https://ftmo.com",
+        details: "FTMO challenge discount when this code is active at checkout.",
         expiry: "2026-12-31",
       },
       {
@@ -341,6 +352,7 @@ function seedData(profile: Profile): StoreData {
         firm: "FundingPips",
         code: "QUANTUM",
         discount: "20% off",
+        details: "FundingPips evaluation discount. Confirm the code before payment.",
         url: "https://fundingpips.com",
         expiry: "2026-10-31",
       },
@@ -362,6 +374,7 @@ function demoUser(): AuthUser {
     role: "trader",
     status: "active",
     createdAt: "2026-01-01T00:00:00.000Z",
+    referralCode: "",
   };
 }
 
@@ -376,6 +389,7 @@ function superAdminUser(): AuthUser {
     role: "superadmin",
     status: "active",
     createdAt: "2026-01-01T00:00:00.000Z",
+    referralCode: "",
   };
 }
 
@@ -383,10 +397,40 @@ function normalizeUser(u: AuthUser): AuthUser {
   return {
     ...u,
     role: u.role === "superadmin" ? "superadmin" : "trader",
-    status: u.status === "disabled" ? "disabled" : "active",
+    status: u.status === "pending" ? "pending" : u.status === "disabled" ? "disabled" : "active",
+    provider: u.provider === "google" ? "google" : "email",
     createdAt: u.createdAt || new Date().toISOString(),
     phone: u.phone ?? "",
+    referralCode: (u.referralCode || "").toUpperCase(),
+    referredByCode: u.referredByCode ? u.referredByCode.toUpperCase() : undefined,
   };
+}
+
+function withReferralCodes(users: AuthUser[]): AuthUser[] {
+  const taken = new Set<string>();
+  return users.map((u) => {
+    const cleaned = (u.referralCode || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+    let referralCode = cleaned;
+    if (!referralCode || taken.has(referralCode)) {
+      referralCode = makeReferralCode(u.name, u.id, taken);
+    } else {
+      taken.add(referralCode);
+    }
+    return { ...u, referralCode, referredByCode: u.referredByCode || undefined };
+  });
+}
+
+function attachReferral(name: string, id: string, existing: AuthUser[]) {
+  const taken = new Set(existing.map((u) => u.referralCode).filter(Boolean));
+  const referralCode = makeReferralCode(name, id, taken);
+  const pending = consumeReferralCode();
+  const referrer = existing.find((u) => u.referralCode === pending && u.id !== id);
+  return { referralCode, referredByCode: referrer?.referralCode };
+}
+
+function denialMessage(user: AuthUser) {
+  if (user.status === "pending" || user.status === "disabled") return APPROVAL_MSG;
+  return null;
 }
 
 function persistUserSeed(user: AuthUser) {
@@ -492,6 +536,7 @@ function loadUsers(): AuthUser[] {
   }
   persistUserSeed(users.find((u) => u.email.toLowerCase() === demo.email.toLowerCase()) ?? demo);
   persistUserSeed(users.find((u) => u.email.toLowerCase() === admin.email.toLowerCase()) ?? admin);
+  users = withReferralCodes(users);
   localStorage.setItem(USERS_KEY, JSON.stringify(users));
   return users;
 }
@@ -532,11 +577,12 @@ type Ctx = {
   users: AuthUser[];
   data: StoreData;
   firstName: string;
-  login: (email: string, password: string) => string | null;
-  signup: (input: { name: string; email: string; password: string; phone?: string }) => string | null;
-  googleContinue: () => void;
-  requestReset: (email: string) => { error: string | null; token?: string };
-  resetPassword: (email: string, token: string, password: string) => string | null;
+  storage: "local" | "mysql";
+  login: (email: string, password: string) => Promise<string | null>;
+  signup: (input: { name: string; email: string; password: string; phone?: string }) => Promise<AuthResult>;
+  googleContinue: (profile: GoogleProfile) => Promise<AuthResult>;
+  requestReset: (email: string) => Promise<{ error: string | null; token?: string }>;
+  resetPassword: (email: string, token: string, password: string) => Promise<string | null>;
   logout: () => void;
   adminCreateUser: (input: {
     name: string;
@@ -544,14 +590,14 @@ type Ctx = {
     password: string;
     phone?: string;
     role: UserRole;
-  }) => string | null;
+  }) => Promise<string | null>;
   adminUpdateUser: (
     id: string,
     patch: Partial<Pick<AuthUser, "name" | "email" | "phone" | "role" | "status">>
-  ) => string | null;
-  adminSetPassword: (id: string, password: string) => string | null;
-  adminDeleteUser: (id: string) => string | null;
-  adminResetUserData: (id: string) => string | null;
+  ) => Promise<string | null>;
+  adminSetPassword: (id: string, password: string) => Promise<string | null>;
+  adminDeleteUser: (id: string) => Promise<string | null>;
+  adminResetUserData: (id: string) => Promise<string | null>;
   updateProfile: (patch: Partial<Profile>) => void;
   addAccount: (a: Omit<Account, "id" | "createdAt">) => void;
   updateAccount: (id: string, patch: Partial<Account>) => void;
@@ -585,107 +631,214 @@ type Ctx = {
 const StoreContext = createContext<Ctx | null>(null);
 
 export function StoreProvider({ children }: { children: ReactNode }) {
-  const [users, setUsers] = useState<AuthUser[]>(loadUsers);
-  const [session, setSession] = useState<Session | null>(loadSession);
+  const emptyProfile: Profile = { name: "", email: "", phone: "", avatar: "", initials: "Q" };
+  const [ready, setReady] = useState(false);
+  const [remote, setRemote] = useState(false);
+  const remoteRef = useRef(false);
+  const skipPersist = useRef(true);
+  const [users, setUsers] = useState<AuthUser[]>([]);
+  const [session, setSession] = useState<Session | null>(null);
   const currentUser = users.find((u) => u.id === session?.userId);
-  const [data, setData] = useState<StoreData>(() => loadData(currentUser));
+  const [data, setData] = useState<StoreData>(() => seedData(emptyProfile));
 
   useEffect(() => {
+    let live = true;
+    (async () => {
+      const online = await api.probeApi();
+      if (!live) return;
+      remoteRef.current = online;
+      setRemote(online);
+      if (online) {
+        if (api.getApiToken()) {
+          try {
+            const me = await api.apiMe();
+            setUsers(me.users.map(normalizeUser));
+            setSession({ userId: me.user.id, email: me.user.email });
+            const payload = await api.apiGetData();
+            setData(
+              normalizeData(payload, {
+                name: me.user.name,
+                email: me.user.email,
+                phone: me.user.phone,
+                avatar: "",
+                initials: initialsOf(me.user.name),
+              })
+            );
+          } catch {
+            api.setApiToken(null);
+            setUsers([]);
+            setSession(null);
+          }
+        }
+      } else {
+        const loaded = loadUsers();
+        const sess = loadSession();
+        setUsers(loaded);
+        setSession(sess);
+        setData(loadData(loaded.find((u) => u.id === sess?.userId)));
+      }
+      skipPersist.current = false;
+      setReady(true);
+    })();
+    return () => {
+      live = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!ready || remote) return;
     localStorage.setItem(USERS_KEY, JSON.stringify(users));
-  }, [users]);
+  }, [users, ready, remote]);
 
   useEffect(() => {
+    if (!ready) return;
     if (session) localStorage.setItem(SESSION_KEY, JSON.stringify(session));
     else localStorage.removeItem(SESSION_KEY);
-  }, [session]);
+  }, [session, ready]);
 
   useEffect(() => {
-    if (session?.userId) localStorage.setItem(dataKey(session.userId), JSON.stringify(data));
-  }, [data, session]);
+    if (!ready || skipPersist.current || !session?.userId) return;
+    if (!remote) {
+      localStorage.setItem(dataKey(session.userId), JSON.stringify(data));
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      void api.apiPutData(data).catch(() => undefined);
+    }, 600);
+    return () => window.clearTimeout(timer);
+  }, [data, session, ready, remote]);
 
   useEffect(() => {
+    if (!ready || remote) return;
     const user = users.find((u) => u.id === session?.userId);
     setData(loadData(user));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session?.userId]);
+  }, [session?.userId, ready, remote]);
 
   const patchData = useCallback((fn: (d: StoreData) => StoreData) => {
     setData((d) => fn(d));
   }, []);
 
-  const login = (email: string, password: string) => {
+  useEffect(() => {
+    if (session && currentUser && currentUser.status !== "active") {
+      setSession(null);
+      api.setApiToken(null);
+    }
+  }, [session, currentUser]);
+
+  const hydrateRemote = async (user: AuthUser) => {
+    const me = await api.apiMe();
+    setUsers(me.users.map(normalizeUser));
+    setSession({ userId: user.id, email: user.email });
+    const payload = await api.apiGetData();
+    skipPersist.current = true;
+    setData(
+      normalizeData(payload, {
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        avatar: "",
+        initials: initialsOf(user.name),
+      })
+    );
+    skipPersist.current = false;
+  };
+
+  const login = async (email: string, password: string) => {
+    if (remoteRef.current) {
+      try {
+        const user = await api.apiLogin(email, password);
+        await hydrateRemote(user);
+        return null;
+      } catch (err) {
+        return err instanceof Error ? err.message : "Login failed.";
+      }
+    }
     const u = users.find((x) => x.email.toLowerCase() === email.trim().toLowerCase());
     if (!u) return "No account found for that email.";
-    if (u.status === "disabled") return "This account is disabled. Contact an administrator.";
-    if (u.provider === "email" && u.password !== password) return "Incorrect password.";
+    const denied = denialMessage(u);
+    if (denied) return denied;
+    if (u.provider === "email" && u.password && u.password !== password) return "Incorrect password.";
+    if (u.provider === "google" && u.password && u.password !== password) return "Incorrect password.";
+    if (u.provider === "google" && !u.password) {
+      return "This account uses Google. Continue with Google to sign in.";
+    }
     setSession({ userId: u.id, email: u.email });
     return null;
   };
 
-  const signup = (input: { name: string; email: string; password: string; phone?: string }) => {
-    if (!input.name.trim() || !input.email.trim() || !input.password) return "All fields are required.";
-    if (input.password.length < 6) return "Password must be at least 6 characters.";
-    if (users.some((u) => u.email.toLowerCase() === input.email.trim().toLowerCase())) {
-      return "An account with that email already exists.";
+  const signup = async (input: {
+    name: string;
+    email: string;
+    password: string;
+    phone?: string;
+  }): Promise<AuthResult> => {
+    if (remoteRef.current) return api.apiSignup(input);
+    if (!input.name.trim() || !input.email.trim() || !input.password) return { error: "All fields are required." };
+    if (input.password.length < 6) return { error: "Password must be at least 6 characters." };
+    const existing = users.find((u) => u.email.toLowerCase() === input.email.trim().toLowerCase());
+    if (existing) {
+      if (existing.status !== "active") return { error: APPROVAL_MSG, awaitingApproval: true };
+      return { error: "An account with that email already exists." };
     }
+    const id = uid();
+    const name = input.name.trim();
     const user: AuthUser = {
-      id: uid(),
-      name: input.name.trim(),
+      id,
+      name,
       email: input.email.trim().toLowerCase(),
       phone: input.phone ?? "",
       password: input.password,
       provider: "email",
       role: "trader",
-      status: "active",
+      status: "pending",
       createdAt: new Date().toISOString(),
+      ...attachReferral(name, id, users),
     };
-    const profile: Profile = {
-      name: user.name,
-      email: user.email,
-      phone: user.phone,
-      avatar: "",
-      initials: initialsOf(user.name),
-    };
-    localStorage.setItem(dataKey(user.id), JSON.stringify(seedData(profile)));
+    persistUserSeed(user);
     setUsers((p) => [...p, user]);
-    setSession({ userId: user.id, email: user.email });
-    return null;
+    return { error: APPROVAL_MSG, awaitingApproval: true };
   };
 
-  const googleContinue = () => {
-    const email = seedUser.email;
-    let u = users.find((x) => x.email.toLowerCase() === email.toLowerCase());
-    if (u?.status === "disabled") return;
-    if (!u) {
-      u = {
-        id: uid(),
-        name: seedUser.name,
-        email,
-        phone: seedUser.phone,
-        password: "",
-        provider: "google",
-        role: "trader",
-        status: "active",
-        createdAt: new Date().toISOString(),
-      };
-      localStorage.setItem(
-        dataKey(u.id),
-        JSON.stringify(
-          seedData({
-            name: u.name,
-            email: u.email,
-            phone: u.phone,
-            avatar: "",
-            initials: initialsOf(u.name),
-          })
-        )
-      );
-      setUsers((p) => [...p, u!]);
+  const googleContinue = async (profile: GoogleProfile): Promise<AuthResult> => {
+    if (remoteRef.current) {
+      const res = await api.apiGoogle(profile);
+      if (res.user && !res.error) await hydrateRemote(res.user);
+      return { error: res.error, awaitingApproval: res.awaitingApproval };
     }
-    setSession({ userId: u.id, email: u.email });
+    const email = profile.email.trim().toLowerCase();
+    const name = profile.name.trim() || email.split("@")[0] || "Trader";
+    if (!email) return { error: "Google did not return an email." };
+    const existing = users.find((x) => x.email.toLowerCase() === email);
+    if (existing) {
+      const denied = denialMessage(existing);
+      if (denied) return { error: denied, awaitingApproval: existing.status !== "active" };
+      setUsers((p) =>
+        p.map((u) => (u.id === existing.id ? { ...u, provider: "google", name: existing.name || name } : u))
+      );
+      setSession({ userId: existing.id, email: existing.email });
+      return { error: null };
+    }
+    const id = uid();
+    const user: AuthUser = {
+      id,
+      name,
+      email,
+      phone: "",
+      password: "",
+      provider: "google",
+      role: "trader",
+      status: "pending",
+      createdAt: new Date().toISOString(),
+      ...attachReferral(name, id, users),
+    };
+    persistUserSeed(user);
+    setUsers((p) => [...p, user]);
+    return { error: APPROVAL_MSG, awaitingApproval: true };
   };
 
-  const requestReset = (email: string) => {
+  const requestReset = async (email: string) => {
+    if (remoteRef.current) return api.apiForgot(email);
     const u = users.find((x) => x.email.toLowerCase() === email.trim().toLowerCase());
     if (!u) return { error: "No account found for that email." };
     const token = Math.random().toString(36).slice(2, 10).toUpperCase();
@@ -695,7 +848,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     return { error: null, token };
   };
 
-  const resetPassword = (email: string, token: string, password: string) => {
+  const resetPassword = async (email: string, token: string, password: string) => {
+    if (remoteRef.current) {
+      try {
+        const user = await api.apiReset(email, token, password);
+        await hydrateRemote(user);
+        return null;
+      } catch (err) {
+        return err instanceof Error ? err.message : "Reset failed.";
+      }
+    }
     const u = users.find((x) => x.email.toLowerCase() === email.trim().toLowerCase());
     if (!u) return "No account found.";
     if (!u.resetToken || u.resetToken !== token.trim().toUpperCase()) return "Invalid reset code.";
@@ -703,11 +865,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setUsers((p) =>
       p.map((x) => (x.id === u.id ? { ...x, password, resetToken: undefined, provider: "email" } : x))
     );
+    const denied = denialMessage(u);
+    if (denied) return denied;
     setSession({ userId: u.id, email: u.email });
     return null;
   };
 
-  const logout = () => setSession(null);
+  const logout = () => {
+    if (remoteRef.current) void api.apiLogout();
+    else api.setApiToken(null);
+    setSession(null);
+  };
 
   const writeRemoteProfile = (userId: string, patch: Partial<Profile>) => {
     try {
@@ -727,21 +895,33 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const adminCreateUser = (input: {
+  const adminCreateUser = async (input: {
     name: string;
     email: string;
     password: string;
     phone?: string;
     role: UserRole;
   }) => {
+    if (remoteRef.current) {
+      try {
+        const user = await api.apiCreateUser(input);
+        setUsers((p) => [...p, normalizeUser(user)]);
+        return null;
+      } catch (err) {
+        return err instanceof Error ? err.message : "Could not create user.";
+      }
+    }
     if (!input.name.trim() || !input.email.trim() || !input.password) return "All fields are required.";
     if (input.password.length < 6) return "Password must be at least 6 characters.";
     if (users.some((u) => u.email.toLowerCase() === input.email.trim().toLowerCase())) {
       return "An account with that email already exists.";
     }
+    const id = uid();
+    const name = input.name.trim();
+    const taken = new Set(users.map((u) => u.referralCode).filter(Boolean));
     const user: AuthUser = {
-      id: uid(),
-      name: input.name.trim(),
+      id,
+      name,
       email: input.email.trim().toLowerCase(),
       phone: input.phone ?? "",
       password: input.password,
@@ -749,6 +929,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       role: input.role === "superadmin" ? "superadmin" : "trader",
       status: "active",
       createdAt: new Date().toISOString(),
+      referralCode: makeReferralCode(name, id, taken),
     };
     localStorage.setItem(
       dataKey(user.id),
@@ -766,10 +947,32 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     return null;
   };
 
-  const adminUpdateUser = (
+  const adminUpdateUser = async (
     id: string,
     patch: Partial<Pick<AuthUser, "name" | "email" | "phone" | "role" | "status">>
   ) => {
+    if (remoteRef.current) {
+      try {
+        const next = normalizeUser(await api.apiUpdateUser(id, patch));
+        setUsers((p) => p.map((u) => (u.id === id ? next : u)));
+        if (session?.userId === id) {
+          setData((d) => ({
+            ...d,
+            profile: {
+              ...d.profile,
+              name: next.name,
+              email: next.email,
+              phone: next.phone,
+              initials: initialsOf(next.name),
+            },
+          }));
+          setSession({ userId: id, email: next.email });
+        }
+        return null;
+      } catch (err) {
+        return err instanceof Error ? err.message : "Update failed.";
+      }
+    }
     const target = users.find((u) => u.id === id);
     if (!target) return "User not found.";
     const nextEmail = patch.email?.trim().toLowerCase();
@@ -811,14 +1014,31 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     return null;
   };
 
-  const adminSetPassword = (id: string, password: string) => {
+  const adminSetPassword = async (id: string, password: string) => {
+    if (remoteRef.current) {
+      try {
+        await api.apiSetPassword(id, password);
+        return null;
+      } catch (err) {
+        return err instanceof Error ? err.message : "Password update failed.";
+      }
+    }
     if (password.length < 6) return "Password must be at least 6 characters.";
     if (!users.some((u) => u.id === id)) return "User not found.";
     setUsers((p) => p.map((u) => (u.id === id ? { ...u, password, provider: "email", resetToken: undefined } : u)));
     return null;
   };
 
-  const adminDeleteUser = (id: string) => {
+  const adminDeleteUser = async (id: string) => {
+    if (remoteRef.current) {
+      try {
+        await api.apiDeleteUser(id);
+        setUsers((p) => p.filter((u) => u.id !== id));
+        return null;
+      } catch (err) {
+        return err instanceof Error ? err.message : "Delete failed.";
+      }
+    }
     if (session?.userId === id) return "You cannot delete the account you are signed in with.";
     const target = users.find((u) => u.id === id);
     if (!target) return "User not found.";
@@ -830,7 +1050,26 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     return null;
   };
 
-  const adminResetUserData = (id: string) => {
+  const adminResetUserData = async (id: string) => {
+    if (remoteRef.current) {
+      try {
+        const next = await api.apiResetUserData(id);
+        if (session?.userId === id && next) {
+          setData(
+            normalizeData(next, {
+              name: currentUser?.name || "",
+              email: currentUser?.email || "",
+              phone: currentUser?.phone || "",
+              avatar: "",
+              initials: initialsOf(currentUser?.name || "Q"),
+            })
+          );
+        }
+        return null;
+      } catch (err) {
+        return err instanceof Error ? err.message : "Reset failed.";
+      }
+    }
     const u = users.find((x) => x.id === id);
     if (!u) return "User not found.";
     const next = seedData({
@@ -847,7 +1086,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<Ctx>(() => {
     const firstName = data.profile.name.split(" ")[0] || "trader";
-    const isSuperAdmin = currentUser?.role === "superadmin" && currentUser.status !== "disabled";
+    const isSuperAdmin = currentUser?.role === "superadmin" && currentUser.status === "active";
     return {
       session,
       currentUser,
@@ -855,6 +1094,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       users,
       data,
       firstName,
+      storage: remote ? "mysql" : "local",
       login,
       signup,
       googleContinue,
@@ -1045,12 +1285,21 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         }),
       setTasks: (tasks) => patchData((d) => ({ ...d, tasks })),
       copyAffiliate: () => {
-        const code = data.affiliateCode;
-        void navigator.clipboard?.writeText(`https://quantum.app/r/${code}`);
-        return `https://quantum.app/r/${code}`;
+        const code = currentUser?.referralCode || data.affiliateCode;
+        const link = referralSignupLink(code);
+        void navigator.clipboard?.writeText(link);
+        return link;
       },
     };
-  }, [session, currentUser, users, data, patchData]);
+  }, [session, currentUser, users, data, patchData, remote, login, signup, googleContinue, requestReset, resetPassword, logout, adminCreateUser, adminUpdateUser, adminSetPassword, adminDeleteUser, adminResetUserData]);
+
+  if (!ready) {
+    return (
+      <div className="grid min-h-screen place-items-center bg-[#F4F6FA] text-sm text-ink-muted">
+        Loading Quantum…
+      </div>
+    );
+  }
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
 }

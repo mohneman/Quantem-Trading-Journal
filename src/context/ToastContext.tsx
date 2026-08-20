@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
 import { Check } from "lucide-react";
 
-type Kind = "success" | "info";
+type Kind = "success" | "info" | "error";
 type Toast = { id: number; message: string; kind: Kind };
 
 const ToastContext = createContext<{ toast: (message: string, kind?: Kind) => void } | null>(null);
@@ -28,6 +28,13 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-emerald-500 text-white">
                 <Check size={12} strokeWidth={3} />
               </span>
+              {item.message}
+            </div>
+          ) : item.kind === "error" ? (
+            <div
+              key={item.id}
+              className="animate-toast-in pointer-events-auto rounded-xl bg-rose-600 px-4 py-3 text-sm font-medium text-white shadow-modal"
+            >
               {item.message}
             </div>
           ) : (

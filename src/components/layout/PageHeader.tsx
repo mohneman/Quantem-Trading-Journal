@@ -9,17 +9,27 @@ export function PageHeader({
   eyebrow,
   action,
   dateLabel = "SESSION DATE",
+  dateText = TODAY_LABEL,
+  sticky = true,
   onMenu,
+  className = "",
 }: {
   title: string;
   subtitle: string;
   eyebrow?: string;
   action?: ReactNode;
   dateLabel?: string;
+  dateText?: string;
+  sticky?: boolean;
   onMenu: () => void;
+  className?: string;
 }) {
   return (
-    <header className="page-header sticky top-3 z-20 mb-5 px-4 py-4 sm:top-4 sm:mb-6 sm:px-6 sm:py-5">
+    <header
+      className={`page-header z-20 mb-5 px-4 py-4 sm:mb-6 sm:px-6 sm:py-5 ${
+        sticky ? "sticky top-3 sm:top-4" : "shrink-0"
+      } ${className}`}
+    >
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex min-w-0 items-start gap-3">
           <MenuButton onClick={onMenu} />
@@ -36,7 +46,7 @@ export function PageHeader({
           </p>
           <div className="mt-1 flex items-center gap-1.5">
             <CalendarDays size={15} className="text-brand" strokeWidth={1.75} />
-            <p className="text-sm font-medium text-ink dark:text-white">{TODAY_LABEL}</p>
+            <p className="text-sm font-medium text-ink dark:text-white">{dateText}</p>
           </div>
         </div>
       </div>

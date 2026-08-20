@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   AlertTriangle,
   Apple,
@@ -18,13 +18,13 @@ import {
   Download,
   ExternalLink,
   Flame,
-  Handshake,
   LayoutGrid,
   Link2,
   ListChecks,
   Plus,
   Ruler,
   Search,
+  SlidersHorizontal,
   Sparkles,
   Target,
   Ticket,
@@ -32,6 +32,8 @@ import {
   TrendingDown,
   TrendingUp,
   Trophy,
+  RefreshCw,
+  Users,
 } from "lucide-react";
 import {
   Area,
@@ -56,6 +58,17 @@ import { useModal } from "../context/ModalContext";
 import { useToast } from "../context/ToastContext";
 import { useStore } from "../store";
 import { csvEscape, downloadText, formatPnl, monthLabel, outcomeStreak, parseRr, rrFromPips } from "../lib";
+import { loadEconomicCalendar, type CalEvent, type CalImpact, type CalendarSource } from "../lib/economicCalendar";
+import { CalendarFilterModal } from "../components/modals/CalendarFilterModal";
+import {
+  CALENDAR_CURRENCIES,
+  DEFAULT_CALENDAR_CURRENCIES,
+  eventGmtYmd,
+  gmtYmd,
+  pairLabel,
+} from "../lib/calendarCurrencies";
+import { loadPropDeals, type PropDeal } from "../lib/propDeals";
+import { referralSignupLink } from "../lib/referral";
 
 const TEAL = "#00D1C1";
 const WIN = "#22C55E";
@@ -65,35 +78,22 @@ const PURPLE = "#7C6CF0";
 const GRID = "#E2E8F0";
 const TICK = "#94A3B8";
 
-const FLAGS: Record<string, string> = { GBP: "🇬🇧", USD: "🇺🇸", EUR: "🇪🇺", CHF: "🇨🇭", JPY: "🇯🇵", AUD: "🇦🇺", CAD: "🇨🇦" };
-
-type CalImpact = "HIGH" | "MED" | "LOW";
-type CalEvent = {
-  id: string;
-  at: string;
-  currency: string;
-  event: string;
-  impact: CalImpact;
-  previous: string;
-  consensus: string;
-  actual: string;
-  better?: boolean;
+const FLAGS: Record<string, string> = {
+  GBP: "🇬🇧",
+  USD: "🇺🇸",
+  EUR: "🇪🇺",
+  CHF: "🇨🇭",
+  JPY: "🇯🇵",
+  AUD: "🇦🇺",
+  CAD: "🇨🇦",
+  NZD: "🇳🇿",
+  CNY: "🇨🇳",
 };
 
-const CALENDAR: CalEvent[] = [
-  { id: "e1", at: "2026-08-18T06:00:00Z", currency: "GBP", event: "Average Earnings incl. Bonus (3Mo/Yr) (Jun)", impact: "HIGH", previous: "3.4%", consensus: "3.4%", actual: "3.5%", better: true },
-  { id: "e2", at: "2026-08-18T06:00:00Z", currency: "GBP", event: "Average Earnings excl. Bonus (3Mo/Yr) (Jun)", impact: "MED", previous: "3.3%", consensus: "3.3%", actual: "3.3%" },
-  { id: "e3", at: "2026-08-18T07:30:00Z", currency: "CHF", event: "Trade Balance (Jul)", impact: "MED", previous: "3.8B", consensus: "4.0B", actual: "4.2B", better: true },
-  { id: "e4", at: "2026-08-18T08:30:00Z", currency: "USD", event: "Building Permits (Jul)", impact: "MED", previous: "1.39M", consensus: "1.42M", actual: "1.37M", better: false },
-  { id: "e5", at: "2026-08-18T08:30:00Z", currency: "USD", event: "Housing Starts (Jul)", impact: "MED", previous: "1.32M", consensus: "1.30M", actual: "1.21M", better: false },
-  { id: "e6", at: "2026-08-18T10:00:00Z", currency: "EUR", event: "German ZEW Economic Sentiment (Aug)", impact: "HIGH", previous: "41.8", consensus: "42.5", actual: "—" },
-  { id: "e7", at: "2026-08-18T12:30:00Z", currency: "USD", event: "API Weekly Crude Oil Stock", impact: "LOW", previous: "1.2M", consensus: "−0.4M", actual: "—" },
-  { id: "e8", at: "2026-08-18T14:00:00Z", currency: "USD", event: "Existing Home Sales (Jul)", impact: "LOW", previous: "3.93M", consensus: "3.99M", actual: "—" },
-  { id: "e9", at: "2026-08-19T06:00:00Z", currency: "GBP", event: "PPI Output YoY (Jul)", impact: "HIGH", previous: "1.5%", consensus: "1.6%", actual: "—" },
-  { id: "e10", at: "2026-08-19T08:30:00Z", currency: "USD", event: "Initial Jobless Claims", impact: "HIGH", previous: "218K", consensus: "225K", actual: "—" },
-  { id: "e11", at: "2026-08-19T10:00:00Z", currency: "EUR", event: "Consumer Confidence (Aug)", impact: "MED", previous: "−14.7", consensus: "−14.2", actual: "—" },
-  { id: "e12", at: "2026-08-20T08:30:00Z", currency: "USD", event: "Philadelphia Fed Manufacturing (Aug)", impact: "MED", previous: "15.9", consensus: "10.0", actual: "—" },
-  { id: "e13", at: "2026-08-20T12:30:00Z", currency: "USD", event: "EIA Crude Oil Stocks Change", impact: "HIGH", previous: "−3.0M", consensus: "−1.2M", actual: "—" },
+const IMPACT_FILTERS: { key: CalImpact; label: string; dot: string }[] = [
+  { key: "HIGH", label: "High", dot: "bg-red-500" },
+  { key: "MED", label: "Medium", dot: "bg-amber-400" },
+  { key: "LOW", label: "Low", dot: "bg-sky-500" },
 ];
 
 export function BacktestsPage() {
@@ -328,26 +328,67 @@ export function StatsPage() {
 
 export function CouponsPage() {
   const onMenu = useMenu();
-  const { data } = useStore();
   const { toast } = useToast();
   const [copied, setCopied] = useState("");
+  const [deals, setDeals] = useState<PropDeal[]>([]);
+  const [live, setLive] = useState(false);
+  const [loadState, setLoadState] = useState<"loading" | "ready">("loading");
   const tints = [
     "from-teal-50 to-cyan-50 dark:from-brand/15 dark:to-transparent",
     "from-violet-50 to-indigo-50 dark:from-violet-500/15 dark:to-transparent",
     "from-amber-50 to-orange-50 dark:from-amber-500/15 dark:to-transparent",
   ];
 
+  const refresh = () => {
+    setLoadState("loading");
+    loadPropDeals()
+      .then((result) => {
+        setDeals(result.deals);
+        setLive(result.live);
+        setLoadState("ready");
+      })
+      .catch(() => {
+        setDeals([]);
+        setLive(false);
+        setLoadState("ready");
+      });
+  };
+
+  useEffect(() => {
+    refresh();
+  }, []);
+
   return (
     <div>
       <PageHeader title="Partner Offers" subtitle="Quick access to exclusive benefits, discounts, and trading perks." onMenu={onMenu} />
       <div className="page-shell overflow-hidden p-5 sm:p-7">
         <div className="rounded-[22px] bg-gradient-to-r from-teal-50/90 via-white to-violet-50/80 p-6 dark:from-brand/15 dark:via-transparent dark:to-violet-500/10">
-          <span className="inline-flex rounded-full bg-brand/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-brand">OFFERS & DEALS</span>
-          <h2 className="mt-2 text-2xl font-semibold dark:text-white">Prop Firm Coupons</h2>
-          <p className="mt-1 text-sm text-ink-muted">Exclusive discount codes for top prop trading firms.</p>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <span className="inline-flex rounded-full bg-brand/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-brand">OFFERS & DEALS</span>
+              <h2 className="mt-2 text-2xl font-semibold dark:text-white">Prop Firm Coupons</h2>
+              <p className="mt-1 text-sm text-ink-muted">
+                Live forex prop-firm discounts: firm name, details, code, and deal link.
+              </p>
+            </div>
+            <button className="btn-ghost" onClick={refresh} disabled={loadState === "loading"}>
+              <RefreshCw size={14} className={loadState === "loading" ? "animate-spin" : ""} />
+              {loadState === "loading" ? "Checking…" : "Refresh deals"}
+            </button>
+          </div>
+          <p className="mt-3 text-[11px] text-ink-faint">
+            {live
+              ? "Showing codes found on official prop-firm sites right now. Always confirm at checkout."
+              : "Live scan did not return a published code, so official deal pages are listed. Open a firm to apply any current promo."}
+          </p>
         </div>
 
-        {data.coupons.length === 0 ? (
+        {loadState === "loading" && deals.length === 0 ? (
+          <div className="flex min-h-[260px] flex-col items-center justify-center text-center">
+            <RefreshCw size={22} className="animate-spin text-brand" />
+            <p className="mt-4 text-sm text-ink-muted">Scanning prop firms for live discounts…</p>
+          </div>
+        ) : deals.length === 0 ? (
           <div className="flex min-h-[260px] flex-col items-center justify-center text-center">
             <div className="grid h-14 w-14 place-items-center rounded-full bg-brand/10 text-brand">
               <Ticket size={22} />
@@ -356,7 +397,9 @@ export function CouponsPage() {
           </div>
         ) : (
           <div className="mt-6 grid gap-4 md:grid-cols-2">
-            {data.coupons.map((c, i) => (
+            {deals.map((c, i) => {
+              const hasCode = Boolean(c.code.trim());
+              return (
               <article key={c.id} className={`card trade-kpi overflow-hidden bg-gradient-to-br p-5 ${tints[i % tints.length]}`}>
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-3">
@@ -368,27 +411,36 @@ export function CouponsPage() {
                       <p className="text-2xl font-semibold dark:text-white">{c.discount}</p>
                     </div>
                   </div>
-                  <span className="rounded-full bg-white/80 px-2 py-0.5 text-[10px] font-semibold uppercase text-brand dark:bg-white/10">Active</span>
+                  <span className="rounded-full bg-white/80 px-2 py-0.5 text-[10px] font-semibold uppercase text-brand dark:bg-white/10">
+                    {c.source === "live" ? "Live" : "Active"}
+                  </span>
                 </div>
-                <p className="mt-4 rounded-xl border border-dashed border-brand/30 bg-white/80 px-3 py-2.5 font-mono text-sm tracking-[0.18em] dark:bg-[#151a21]">{c.code}</p>
-                <p className="mt-2 text-xs text-ink-faint">Expires {c.expiry}</p>
+                {c.details ? <p className="mt-3 text-sm text-ink-muted">{c.details}</p> : null}
+                <p className={`mt-4 rounded-xl border border-dashed border-brand/30 bg-white/80 px-3 py-2.5 ${hasCode ? "font-mono tracking-[0.18em]" : "text-sm font-semibold"} dark:bg-[#151a21]`}>
+                  {hasCode ? c.code : "No code needed"}
+                </p>
+                <p className="mt-2 break-all text-xs text-ink-faint">{c.url}</p>
+                {c.expiry ? <p className="mt-1 text-xs text-ink-faint">Expires {c.expiry}</p> : null}
                 <div className="mt-4 flex gap-2">
-                  <button
-                    className="btn-primary flex-1"
-                    onClick={() => {
-                      void navigator.clipboard?.writeText(c.code);
-                      setCopied(c.id);
-                      toast("Coupon copied");
-                    }}
-                  >
-                    <Copy size={14} /> {copied === c.id ? "Copied" : "Copy code"}
-                  </button>
-                  <button className="btn-ghost" onClick={() => window.open(c.url, "_blank", "noopener")}>
+                  {hasCode ? (
+                    <button
+                      className="btn-primary flex-1"
+                      onClick={() => {
+                        void navigator.clipboard?.writeText(c.code);
+                        setCopied(c.id);
+                        toast("Coupon copied");
+                      }}
+                    >
+                      <Copy size={14} /> {copied === c.id ? "Copied" : "Copy code"}
+                    </button>
+                  ) : null}
+                  <button className={`btn-ghost ${hasCode ? "" : "btn-primary flex-1"}`} onClick={() => window.open(c.url, "_blank", "noopener")}>
                     <ExternalLink size={14} /> Visit offer
                   </button>
                 </div>
               </article>
-            ))}
+              );
+            })}
           </div>
         )}
         <p className="mt-6 text-center text-[11px] text-ink-faint">
@@ -523,131 +575,222 @@ export function CalculatorPage() {
 export function CalendarPage() {
   const onMenu = useMenu();
   const [pair, setPair] = useState("All");
+  const [enabledCurrencies, setEnabledCurrencies] = useState<string[]>(DEFAULT_CALENDAR_CURRENCIES);
   const [impacts, setImpacts] = useState<CalImpact[]>(["HIGH", "MED", "LOW"]);
+  const [filterOpen, setFilterOpen] = useState(false);
   const [alerts, setAlerts] = useState<string[]>([]);
+  const [events, setEvents] = useState<CalEvent[]>([]);
+  const [source, setSource] = useState<CalendarSource | null>(null);
+  const [loadState, setLoadState] = useState<"loading" | "ready" | "error">("loading");
   const [now, setNow] = useState(() => Date.now());
+  const todayKey = gmtYmd();
+
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
   }, []);
 
-  const pairs = ["All", "CHF", "EUR", "GBP", "USD"];
-  const rows = CALENDAR.filter((e) => (pair === "All" || e.currency === pair) && impacts.includes(e.impact));
-  const groups = useMemo(() => {
-    const map = new Map<string, CalEvent[]>();
-    rows.forEach((e) => {
-      const key = dayHeading(e.at);
-      map.set(key, [...(map.get(key) ?? []), e]);
-    });
-    return [...map.entries()];
-  }, [rows]);
+  const refresh = () => {
+    setLoadState("loading");
+    loadEconomicCalendar()
+      .then((result) => {
+        setEvents(result.events);
+        setSource(result.source);
+        setLoadState("ready");
+      })
+      .catch(() => {
+        setEvents([]);
+        setSource(null);
+        setLoadState("error");
+      });
+  };
 
-  const allOn = impacts.length === 3;
+  useEffect(() => {
+    refresh();
+  }, []);
+
+  const extraCodes = useMemo(
+    () => [...new Set(events.map((e) => e.currency))].filter((code) => !CALENDAR_CURRENCIES.some((c) => c.code === code)),
+    [events]
+  );
+
+  const pairPills = useMemo(() => ["All", ...enabledCurrencies], [enabledCurrencies]);
+
+  const todayEvents = events.filter((e) => eventGmtYmd(e.at) === todayKey);
+  const rows = todayEvents.filter((e) => {
+    if (enabledCurrencies.length && !enabledCurrencies.includes(e.currency)) return false;
+    if (pair !== "All" && e.currency !== pair) return false;
+    if (impacts.length && !impacts.includes(e.impact)) return false;
+    return true;
+  });
+  const gmtFmt: Intl.DateTimeFormatOptions = { timeZone: "UTC" };
+  const heading = todayEvents[0]
+    ? dayHeading(todayEvents[0].at)
+    : new Date().toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric", year: "numeric", ...gmtFmt });
   const clock = new Date(now).toISOString().slice(11, 19);
-  const range = dateRangeLabel(CALENDAR);
+  const todayLabel = new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", ...gmtFmt });
+  const sessionDate = new Date().toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric", ...gmtFmt });
+  const nextId = rows.find((e) => new Date(e.at).getTime() > now)?.id;
 
-  function toggleImpact(level: CalImpact) {
-    setImpacts((p) => (p.includes(level) ? p.filter((x) => x !== level) : [...p, level]));
+  function toggleImpact(key: CalImpact) {
+    setImpacts((curr) => {
+      if (curr.includes(key) && curr.length === 1) return curr;
+      return curr.includes(key) ? curr.filter((c) => c !== key) : [...curr, key];
+    });
+  }
+
+  function flagFor(code: string) {
+    return CALENDAR_CURRENCIES.find((c) => c.code === code)?.flag ?? FLAGS[code] ?? "";
   }
 
   return (
-    <div>
-      <PageHeader title="Economic Calendar" subtitle="Focus on the events that can move your sessions and liquidity." onMenu={onMenu} />
-      <div className="page-shell p-5 sm:p-7">
-        <div className="rounded-[24px] bg-gradient-to-r from-teal-100/90 via-cyan-50 to-violet-50 p-6 dark:from-brand/20 dark:via-transparent dark:to-violet-500/10">
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden overscroll-none">
+      <PageHeader
+        title="Economic Calendar"
+        subtitle="Focus on the events that can move your sessions and liquidity."
+        onMenu={onMenu}
+        sticky={false}
+        dateText={sessionDate}
+        className="mb-3 sm:mb-4"
+      />
+      <div className="page-shell flex min-h-0 flex-1 flex-col overflow-hidden p-4 sm:p-5">
+        <div className="shrink-0 rounded-[24px] bg-gradient-to-r from-teal-100/90 via-cyan-50 to-violet-50 p-5 dark:from-brand/20 dark:via-transparent dark:to-violet-500/10">
           <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-brand">Event Risk Dashboard</p>
-          <div className="mt-2 flex flex-wrap items-end justify-between gap-4">
-            <div>
-              <h2 className="text-2xl font-semibold dark:text-white">Economic Calendar</h2>
-              <p className="text-sm text-ink-muted">{longToday()}</p>
+          <div className="mt-2">
+            <h2 className="text-2xl font-semibold dark:text-white">Economic Calendar</h2>
+            <p className="text-sm text-ink-muted">
+              {new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric", timeZone: "UTC" })}
+            </p>
+          </div>
+          <div className="mt-4 flex flex-wrap items-start justify-between gap-4">
+            <div className="min-w-0 flex-1">
+              <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-ink-faint">Pairs</p>
+              <div className="flex max-w-full gap-1.5 overflow-x-auto pb-0.5">
+                {pairPills.map((p) => (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => setPair(p)}
+                    className={`filter-pill shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-semibold ${
+                      pair === p ? "bg-sky-500 text-white shadow-soft" : "bg-white text-ink-muted dark:bg-white/10"
+                    }`}
+                  >
+                    {p === "All" ? "All" : pairLabel(p)}
+                  </button>
+                ))}
+              </div>
             </div>
-            <div className="flex flex-col items-start gap-3 sm:items-end">
-              <div>
-                <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-ink-faint">Pairs</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {pairs.map((p) => (
+            <div>
+              <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-ink-faint">Impact</p>
+              <div className="flex flex-wrap items-center gap-1.5">
+                {IMPACT_FILTERS.map((item) => {
+                  const on = impacts.includes(item.key);
+                  return (
                     <button
-                      key={p}
+                      key={item.key}
                       type="button"
-                      onClick={() => setPair(p)}
-                      className={`filter-pill rounded-full px-3 py-1.5 text-xs font-semibold ${
-                        pair === p ? "bg-sky-500 text-white shadow-soft" : "bg-white text-ink-muted dark:bg-white/10"
+                      onClick={() => toggleImpact(item.key)}
+                      className={`filter-pill inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold ${
+                        on ? "bg-white text-ink shadow-soft ring-1 ring-sky-400 dark:bg-white/15 dark:text-white" : "bg-white/70 text-ink-muted dark:bg-white/10"
                       }`}
                     >
-                      {p === "All" ? "All" : `${FLAGS[p] ?? ""} ${p}`}
+                      <span className={`h-2 w-2 rounded-full ${item.dot}`} />
+                      {item.label}
                     </button>
-                  ))}
-                </div>
-              </div>
-              <div className="flex items-center gap-3 text-xs">
-                <button
-                  type="button"
-                  aria-label="Toggle all impact filters"
-                  onClick={() => setImpacts(allOn ? [] : ["HIGH", "MED", "LOW"])}
-                  className={`relative h-5 w-9 rounded-full transition ${allOn ? "bg-brand" : "bg-slate-300 dark:bg-white/20"}`}
-                >
-                  <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition ${allOn ? "left-[18px]" : "left-0.5"}`} />
-                </button>
-                <button type="button" onClick={() => toggleImpact("HIGH")} className={`inline-flex items-center gap-1 font-semibold ${impacts.includes("HIGH") ? "text-red-500" : "text-ink-faint"}`}>
-                  <span className="h-2 w-2 rounded-full bg-red-500" /> High
-                </button>
-                <button type="button" onClick={() => toggleImpact("MED")} className={`inline-flex items-center gap-1 font-semibold ${impacts.includes("MED") ? "text-amber-500" : "text-ink-faint"}`}>
-                  <span className="h-2 w-2 rounded-full bg-amber-500" /> Medium
-                </button>
-                <button type="button" onClick={() => toggleImpact("LOW")} className={`inline-flex items-center gap-1 font-semibold ${impacts.includes("LOW") ? "text-emerald-500" : "text-ink-faint"}`}>
-                  <span className="h-2 w-2 rounded-full bg-emerald-500" /> Low
-                </button>
+                  );
+                })}
               </div>
             </div>
           </div>
         </div>
 
-        <div className="mb-3 mt-5 flex flex-wrap items-center justify-between gap-2 text-sm text-ink-muted">
-          <span className="inline-flex items-center gap-2">
-            {range}
-            <ChevronDown size={14} className="text-ink-faint" />
-          </span>
-          <div className="flex items-center gap-3">
-            <span className="font-mono">{clock} (GMT)</span>
-            <span className="hidden text-[11px] text-ink-faint sm:inline">Western Europe Time, London</span>
-            <span className="flex items-center gap-1.5 text-ink-faint">
-              <PlayBadge />
-              <Apple size={14} />
+        <div className="mt-3 flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-line dark:border-[#243041]">
+          <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-line px-4 py-2.5 text-sm text-ink-muted dark:border-[#243041]">
+            <span className="inline-flex items-center gap-2">
+              {todayLabel}
+              <ChevronDown size={14} className="text-ink-faint" />
             </span>
+            <div className="flex items-center gap-3">
+              <span className="font-mono">{clock} (GMT)</span>
+              <span className="flex items-center gap-1.5 text-ink-faint">
+                <PlayBadge />
+                <Apple size={14} />
+                <button
+                  type="button"
+                  className="rounded-md p-1 text-ink-muted hover:bg-slate-100 hover:text-ink dark:hover:bg-white/10 dark:hover:text-white"
+                  aria-label="Open calendar filters"
+                  onClick={() => setFilterOpen(true)}
+                >
+                  <SlidersHorizontal size={15} />
+                </button>
+              </span>
+            </div>
           </div>
-        </div>
-
-        <div className="overflow-x-auto rounded-2xl border border-line dark:border-[#243041]">
-          <table className="min-w-full text-left text-sm">
-            <thead className="border-b border-line bg-slate-50 text-[11px] uppercase tracking-wide text-ink-faint dark:border-[#243041] dark:bg-white/5">
-              <tr>
-                {["Date", "Time left", "Event", "Impact", "Previous", "Consensus", "Actual", ""].map((h) => (
-                  <th key={h} className="px-4 py-3 font-medium">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {groups.length === 0 ? (
+          <p className="shrink-0 border-b border-line px-4 py-1.5 text-[11px] text-ink-faint dark:border-[#243041]">
+            {source === "myfxbook" ? (
+              <>
+                Live table from{" "}
+                <a className="font-medium text-brand hover:underline" href="https://www.myfxbook.com/forex-economic-calendar" target="_blank" rel="noreferrer">
+                  Myfxbook Economic Calendar
+                </a>
+                {" "}· today only
+              </>
+            ) : source === "public" ? (
+              <>Live public economic calendar feed (Myfxbook was unavailable) · today only</>
+            ) : loadState === "error" ? (
+              <>Could not load live calendar data.</>
+            ) : (
+              <>Fetching live economic events…</>
+            )}
+          </p>
+          <div className="min-h-0 flex-1 overflow-auto overscroll-contain">
+            <table className="min-w-full text-left text-sm">
+              <thead className="sticky top-0 z-10 border-b border-line bg-slate-50 text-[11px] uppercase tracking-wide text-ink-faint dark:border-[#243041] dark:bg-[#151a21]">
                 <tr>
-                  <td colSpan={8} className="px-4 py-16 text-center text-sm text-ink-faint">No events match the current filters.</td>
+                  {["Date", "Time left", "Event", "Impact", "Previous", "Consensus", "Actual", ""].map((h) => (
+                    <th key={h || "alert"} className="px-4 py-3 font-medium">{h}</th>
+                  ))}
                 </tr>
-              ) : (
-                groups.map(([heading, events]) => (
-                  <Fragment key={heading}>
+              </thead>
+              <tbody>
+                {loadState === "loading" ? (
+                  <tr>
+                    <td colSpan={8} className="px-4 py-16 text-center text-sm text-ink-faint">Loading live economic events…</td>
+                  </tr>
+                ) : loadState === "error" ? (
+                  <tr>
+                    <td colSpan={8} className="px-4 py-16 text-center text-sm text-ink-faint">
+                      Could not load the public calendar.
+                      <button type="button" className="ml-2 font-semibold text-brand hover:underline" onClick={refresh}>
+                        Retry
+                      </button>
+                    </td>
+                  </tr>
+                ) : rows.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="px-4 py-16 text-center text-sm text-ink-faint">No events for today match the current filters.</td>
+                  </tr>
+                ) : (
+                  <>
                     <tr>
                       <td colSpan={8} className="bg-slate-50 px-4 py-2 text-xs font-semibold dark:bg-white/5 dark:text-white">{heading}</td>
                     </tr>
-                    {events.map((e) => {
+                    {rows.map((e) => {
                       const left = timeLeft(e.at, now);
                       const alertOn = alerts.includes(e.id);
                       return (
-                        <tr key={e.id} className="dash-row border-b border-line last:border-0 hover:bg-sky-50/70 dark:border-[#243041] dark:hover:bg-white/5">
+                        <tr
+                          key={e.id}
+                          className={`dash-row border-b border-line last:border-0 hover:bg-sky-50/70 dark:border-[#243041] dark:hover:bg-white/5 ${
+                            e.id === nextId ? "bg-emerald-50/80 dark:bg-emerald-500/10" : ""
+                          }`}
+                        >
                           <td className="whitespace-nowrap px-4 py-3 text-ink-muted">{fmtStamp(e.at)}</td>
                           <td className="px-4 py-3">
                             {left === "done" ? <CheckCircle2 size={16} className="text-brand" /> : <span className="text-xs font-medium text-ink-muted">{left}</span>}
                           </td>
                           <td className="px-4 py-3">
-                            <span className="mr-2">{FLAGS[e.currency] ?? ""}</span>
+                            <span className="mr-2">{flagFor(e.currency)}</span>
                             <span className="mr-2 text-xs font-semibold text-ink-faint">{e.currency}</span>
                             {e.event}
                           </td>
@@ -678,13 +821,27 @@ export function CalendarPage() {
                         </tr>
                       );
                     })}
-                  </Fragment>
-                ))
-              )}
-            </tbody>
-          </table>
+                  </>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
+      {filterOpen ? (
+        <CalendarFilterModal
+          selected={enabledCurrencies}
+          impacts={impacts}
+          extraCodes={extraCodes}
+          onClose={() => setFilterOpen(false)}
+          onApply={(currencies, nextImpacts) => {
+            setEnabledCurrencies(currencies);
+            setImpacts(nextImpacts);
+            if (pair !== "All" && !currencies.includes(pair)) setPair("All");
+            setFilterOpen(false);
+          }}
+        />
+      ) : null}
     </div>
   );
 }
@@ -1045,23 +1202,43 @@ export function PayoutJournalPage() {
 
 export function AffiliatePage() {
   const onMenu = useMenu();
-  const { data, copyAffiliate } = useStore();
+  const { currentUser, isSuperAdmin, users, copyAffiliate } = useStore();
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
-  const link = `https://quantum.app/r/${data.affiliateCode}`;
+  const [copiedUser, setCopiedUser] = useState("");
+  const [openId, setOpenId] = useState("");
+  const code = currentUser?.referralCode || "";
+  const link = referralSignupLink(code);
+  const mySignups = users.filter((u) => u.referredByCode === code);
+  const ranked = [...users].sort((a, b) => {
+    const ac = users.filter((u) => u.referredByCode === a.referralCode).length;
+    const bc = users.filter((u) => u.referredByCode === b.referralCode).length;
+    return bc - ac || a.name.localeCompare(b.name);
+  });
+
   return (
     <div>
-      <PageHeader title="Affiliate Program" subtitle="Share Quantum and earn partner rewards." onMenu={onMenu} />
+      <PageHeader
+        title="Affiliate Program"
+        subtitle={
+          isSuperAdmin
+            ? "Monitor every referral link and the traders who signed up through it."
+            : "Share your Quantum link and see how many traders signed up with it."
+        }
+        onMenu={onMenu}
+      />
       <div className="page-shell overflow-hidden p-5 sm:p-8">
         <div className="rounded-[24px] bg-gradient-to-r from-teal-50 via-white to-violet-50 p-6 dark:from-brand/15 dark:via-transparent dark:to-violet-500/10">
           <span className="inline-flex rounded-full bg-brand/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-brand">PARTNERS</span>
-          <h2 className="mt-2 text-2xl font-semibold dark:text-white">Invite traders. Earn together.</h2>
-          <p className="mt-2 max-w-xl text-sm text-ink-muted">Share your Quantum referral link. Tracking is stored locally until a live partner backend is connected.</p>
+          <h2 className="mt-2 text-2xl font-semibold dark:text-white">Invite traders.</h2>
+          <p className="mt-2 max-w-xl text-sm text-ink-muted">
+            Each account has a unique referral code. Anyone who opens signup with your link is counted for you.
+          </p>
         </div>
         <div className="mt-6 grid gap-4 lg:grid-cols-[1.4fr_1fr]">
           <div className="card p-5">
             <p className="text-xs uppercase tracking-wide text-ink-faint">Your referral code</p>
-            <p className="mt-1 font-mono text-xl font-semibold dark:text-white">{data.affiliateCode}</p>
+            <p className="mt-1 font-mono text-xl font-semibold dark:text-white">{code || "—"}</p>
             <p className="mt-3 break-all rounded-xl bg-slate-50 px-3 py-2 text-sm text-ink-muted dark:bg-white/5">{link}</p>
             <button
               className="btn-gradient mt-4"
@@ -1074,35 +1251,98 @@ export function AffiliatePage() {
               <Copy size={14} /> {copied ? "Copied" : "Copy link"}
             </button>
           </div>
-          <div className="grid gap-3">
+          <div className="rounded-2xl bg-gradient-to-br from-teal-50 to-violet-50 p-5 dark:from-white/5 dark:to-white/0">
+            <p className="text-xs text-ink-muted">Signups from your link</p>
+            <p className="mt-1 text-3xl font-semibold dark:text-white">{mySignups.length}</p>
+            <p className="text-[11px] text-ink-faint">People who created an account using your referral code</p>
+          </div>
+        </div>
+        {isSuperAdmin ? (
+          <div className="mt-6 card overflow-hidden">
+            <div className="flex items-center gap-2 border-b border-line px-4 py-3 dark:border-[#243041]">
+              <Users size={16} className="text-brand" />
+              <p className="font-semibold dark:text-white">All referral activity</p>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[720px] text-left text-sm">
+                <thead className="bg-slate-50 text-[11px] uppercase tracking-wide text-ink-faint dark:bg-white/5">
+                  <tr>
+                    <th className="px-4 py-2 font-medium">User</th>
+                    <th className="px-4 py-2 font-medium">Code</th>
+                    <th className="px-4 py-2 font-medium">Signups</th>
+                    <th className="px-4 py-2 font-medium">Link</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {ranked.map((u) => {
+                    const referred = users.filter((x) => x.referredByCode === u.referralCode);
+                    const userLink = referralSignupLink(u.referralCode);
+                    const open = openId === u.id;
+                    return (
+                      <tr key={u.id} className="border-t border-line dark:border-[#243041]">
+                        <td className="px-4 py-3 align-top">
+                          <button className="text-left" onClick={() => setOpenId(open ? "" : u.id)}>
+                            <p className="font-medium dark:text-white">{u.name}</p>
+                            <p className="text-xs text-ink-faint">{u.email}</p>
+                          </button>
+                          {open ? (
+                            <div className="mt-3 space-y-1.5 rounded-xl bg-slate-50 p-3 dark:bg-white/5">
+                              {referred.length === 0 ? (
+                                <p className="text-xs text-ink-faint">No signups on this link yet.</p>
+                              ) : (
+                                referred.map((r) => (
+                                  <div key={r.id} className="flex items-center justify-between gap-3 text-xs">
+                                    <div>
+                                      <p className="font-medium dark:text-white">{r.name}</p>
+                                      <p className="text-ink-faint">{r.email}</p>
+                                    </div>
+                                    <div className="text-right text-ink-faint">
+                                      <p className="capitalize">{r.status}</p>
+                                      <p>{new Date(r.createdAt).toLocaleDateString()}</p>
+                                    </div>
+                                  </div>
+                                ))
+                              )}
+                            </div>
+                          ) : null}
+                        </td>
+                        <td className="px-4 py-3 align-top font-mono text-xs">{u.referralCode}</td>
+                        <td className="px-4 py-3 align-top">{referred.length}</td>
+                        <td className="px-4 py-3 align-top">
+                          <button
+                            className="btn-ghost"
+                            onClick={() => {
+                              void navigator.clipboard?.writeText(userLink);
+                              setCopiedUser(u.id);
+                              toast("Referral link copied");
+                            }}
+                          >
+                            <Copy size={14} /> {copiedUser === u.id ? "Copied" : "Copy"}
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ) : (
+          <div className="mt-6 grid gap-3 sm:grid-cols-2">
             {[
-              ["Referrals", "0", "Traders who used your link"],
-              ["Pending", "$0", "Rewards awaiting payout"],
-              ["Paid", "$0", "Lifetime partner earnings"],
-            ].map(([l, v, h]) => (
-              <div key={l} className="rounded-2xl bg-gradient-to-br from-teal-50 to-violet-50 p-4 transition duration-300 hover:-translate-y-0.5 hover:shadow-card dark:from-white/5 dark:to-white/0">
-                <p className="text-xs text-ink-muted">{l}</p>
-                <p className="mt-1 text-xl font-semibold dark:text-white">{v}</p>
-                <p className="text-[11px] text-ink-faint">{h}</p>
+              ["1. Share", "Send your Quantum signup link to other traders."],
+              ["2. Track", "This page counts how many people used it to create an account."],
+            ].map(([t, d]) => (
+              <div key={t} className="card p-4">
+                <div className="mb-2 grid h-9 w-9 place-items-center rounded-full bg-brand/10 text-brand">
+                  <Link2 size={16} />
+                </div>
+                <p className="font-semibold dark:text-white">{t}</p>
+                <p className="mt-1 text-xs text-ink-muted">{d}</p>
               </div>
             ))}
           </div>
-        </div>
-        <div className="mt-6 grid gap-3 sm:grid-cols-3">
-          {[
-            ["1. Share", "Send your Quantum link to traders who journal with you."],
-            ["2. Track", "Referrals and rewards stay on this device until a partner API is connected."],
-            ["3. Earn", "Partner payouts will post here once the live backend is attached."],
-          ].map(([t, d], i) => (
-            <div key={t} className="card p-4">
-              <div className="mb-2 grid h-9 w-9 place-items-center rounded-full bg-brand/10 text-brand">
-                {i === 2 ? <Handshake size={16} /> : <Link2 size={16} />}
-              </div>
-              <p className="font-semibold dark:text-white">{t}</p>
-              <p className="mt-1 text-xs text-ink-muted">{d}</p>
-            </div>
-          ))}
-        </div>
+        )}
       </div>
     </div>
   );
@@ -1286,19 +1526,14 @@ function PlayBadge() {
   );
 }
 
-function longToday() {
-  const d = new Date(`${TODAY_ISO}T12:00:00`);
-  return d.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
-}
-
 function dayHeading(iso: string) {
   const d = new Date(iso);
-  return d.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric", year: "numeric" });
+  return d.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
 }
 
 function fmtStamp(iso: string) {
   const d = new Date(iso);
-  return d.toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false });
+  return d.toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "UTC" });
 }
 
 function timeLeft(iso: string, now: number) {
@@ -1309,15 +1544,6 @@ function timeLeft(iso: string, now: number) {
   if (h >= 24) return `${Math.floor(h / 24)} d ${h % 24} h`;
   if (h > 0) return `${h} h ${m} m`;
   return `${m} m`;
-}
-
-function dateRangeLabel(events: CalEvent[]) {
-  if (!events.length) return "";
-  const times = events.map((e) => new Date(e.at).getTime());
-  const a = new Date(Math.min(...times));
-  const b = new Date(Math.max(...times));
-  const fmt = (d: Date) => d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-  return `${fmt(a)} - ${fmt(b)}, ${b.getUTCFullYear()}`;
 }
 
 function lastMonths(n: number) {
