@@ -16,11 +16,11 @@ import { Modal } from "../ui/Modal";
 import { Field, Input, Select, TextArea } from "../ui/Field";
 import { Button } from "../ui/Button";
 import { ImageProofField } from "../ui/ImageProofField";
-import { defaultChecklist, psychologyTags, TODAY_ISO } from "../../data";
+import { defaultChecklist, psychologyTags } from "../../data";
 import { useStore } from "../../store";
 import { useModal } from "../../context/ModalContext";
 import { useToast } from "../../context/ToastContext";
-import { gradeFromChecked, rrFromPips } from "../../lib";
+import { gradeFromChecked, rrFromPips, todayIso } from "../../lib";
 import { ChecklistSettingsModal } from "./ChecklistSettingsModal";
 
 export function AddTradeModal({ onClose, tradeId, initialDate }: { onClose: () => void; tradeId?: string; initialDate?: string }) {
@@ -41,7 +41,7 @@ export function AddTradeModal({ onClose, tradeId, initialDate }: { onClose: () =
   const [direction, setDirection] = useState<"" | "Buy" | "Sell">(existing?.direction ?? "");
   const [session, setSession] = useState(existing?.session ?? "");
   const [pair, setPair] = useState(existing?.symbol ?? "");
-  const [date, setDate] = useState(existing?.date ?? initialDate ?? TODAY_ISO);
+  const [date, setDate] = useState(existing?.date ?? initialDate ?? todayIso());
   const [risk, setRisk] = useState(existing?.risk.replace("%", "") ?? "");
   const [sl, setSl] = useState(existing?.slPips ?? "");
   const [tp, setTp] = useState(existing?.tpPips ?? "");

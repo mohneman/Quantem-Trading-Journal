@@ -4,9 +4,10 @@ import { Modal } from "../ui/Modal";
 import { Field, Input, Select, TextArea } from "../ui/Field";
 import { Button } from "../ui/Button";
 import { ImageProofField } from "../ui/ImageProofField";
-import { defaultChecklist, TODAY_ISO } from "../../data";
+import { defaultChecklist } from "../../data";
 import { useStore } from "../../store";
 import { useToast } from "../../context/ToastContext";
+import { todayIso } from "../../lib";
 import { ChecklistSettingsModal } from "./ChecklistSettingsModal";
 
 export function AddBacktestModal({ onClose, backtestId }: { onClose: () => void; backtestId?: string }) {
@@ -23,7 +24,7 @@ export function AddBacktestModal({ onClose, backtestId }: { onClose: () => void;
         : data.checklists.find((c) => c.id === checklistId)?.items ?? defaultChecklist;
   const [checked, setChecked] = useState(existing?.rules.map((r) => r.checked) ?? items.map(() => false));
   const [result, setResult] = useState<"WIN" | "LOSS" | null>(existing?.result ?? null);
-  const [date, setDate] = useState(existing?.date ?? TODAY_ISO);
+  const [date, setDate] = useState(existing?.date ?? todayIso());
   const [symbol, setSymbol] = useState(existing?.symbol ?? "");
   const [direction, setDirection] = useState(existing?.direction ?? "");
   const [scenario, setScenario] = useState(existing?.scenario ?? "");

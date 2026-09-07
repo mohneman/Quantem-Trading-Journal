@@ -3,10 +3,9 @@ import { Check, X } from "lucide-react";
 import { Modal } from "../ui/Modal";
 import { Field, Input, Select, TextArea } from "../ui/Field";
 import { Button } from "../ui/Button";
-import { TODAY_ISO } from "../../data";
 import { useStore } from "../../store";
 import { useToast } from "../../context/ToastContext";
-import { traderShare } from "../../lib";
+import { todayIso, traderShare } from "../../lib";
 
 export function AddPayoutModal({ onClose, payoutId }: { onClose: () => void; payoutId?: string }) {
   const { data, addPayout, updatePayout } = useStore();
@@ -20,8 +19,8 @@ export function AddPayoutModal({ onClose, payoutId }: { onClose: () => void; pay
   const [amount, setAmount] = useState(existing ? String(existing.payout || existing.amount) : "");
   const [status, setStatus] = useState<"Pending" | "Completed" | "Rejected">(existing?.status ?? "Pending");
   const [method, setMethod] = useState(existing?.method ?? "Crypto");
-  const [requestDate, setRequestDate] = useState(existing?.requestDate ?? TODAY_ISO);
-  const [payoutDate, setPayoutDate] = useState(existing?.payoutDate ?? TODAY_ISO);
+  const [requestDate, setRequestDate] = useState(existing?.requestDate ?? todayIso());
+  const [payoutDate, setPayoutDate] = useState(existing?.payoutDate ?? todayIso());
   const [notes, setNotes] = useState(existing?.notes ?? "");
   const [error, setError] = useState("");
   const acc = data.accounts.find((a) => a.id === accountId);

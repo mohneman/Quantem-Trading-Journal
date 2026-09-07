@@ -16,10 +16,9 @@ import {
 import { Modal } from "../ui/Modal";
 import { Field, Input, Select, TextArea } from "../ui/Field";
 import { Button } from "../ui/Button";
-import { TODAY_ISO } from "../../data";
 import { useStore } from "../../store";
 import { useToast } from "../../context/ToastContext";
-import { uid } from "../../lib";
+import { todayIso, uid } from "../../lib";
 
 const moods = [
   { id: "Happy", emoji: "😊", tint: "bg-amber-50" },
@@ -64,7 +63,7 @@ export function NewDayModal({
   const [mood, setMood] = useState(existing?.mood ?? "Excited");
   const [activeTags, setActiveTags] = useState(existing?.tags ?? ["Trading", "Personal"]);
   const [title, setTitle] = useState(existing?.title ?? "");
-  const [date, setDate] = useState(existing?.date ?? initialDate ?? TODAY_ISO);
+  const [date, setDate] = useState(existing?.date ?? initialDate ?? todayIso());
   const [gratitude, setGratitude] = useState(existing?.gratitude ?? "");
   const [affirmation, setAffirmation] = useState(existing?.affirmation ?? "");
   const [notes, setNotes] = useState(existing?.notes ?? "");

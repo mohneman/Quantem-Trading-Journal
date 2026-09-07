@@ -1,5 +1,7 @@
-export const TODAY_LABEL = "Tuesday, Aug 18";
-export const TODAY_ISO = "2026-08-18";
+import { todayIso, todayLabel } from "./lib";
+
+export const TODAY_LABEL = todayLabel();
+export const TODAY_ISO = todayIso();
 
 export const user = {
   name: "ali ahmed",
