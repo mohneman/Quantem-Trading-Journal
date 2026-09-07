@@ -49,6 +49,69 @@ export function suggestPnl(opts: {
   return Math.round(riskAmt * rr * 100) / 100;
 }
 
+export type PnlTrade = {
+  pnl: number;
+  risk: string;
+  rr: string;
+  outcome: string;
+  accountIds: string[];
+  accountPnls?: Record<string, number>;
+};
+
+export type PnlAccount = { id: string; balance: number };
+
+function asClosedOutcome(outcome: string): "WIN" | "LOSS" | "BE" | "OPEN" {
+  if (outcome === "WIN" || outcome === "LOSS" || outcome === "BE" || outcome === "OPEN") return outcome;
+  return "OPEN";
+}
+
+function money2(n: number) {
+  return Math.round(n * 100) / 100;
+}
+
+/** Dollar P&L for one linked account. 2% of $10k is $200; 2% of $25k is $500. */
+export function tradePnlForAccount(t: PnlTrade, account: PnlAccount, accounts: PnlAccount[]) {
+  if (!t.accountIds.includes(account.id)) return 0;
+  const stored = t.accountPnls?.[account.id];
+  if (typeof stored === "number" && Number.isFinite(stored)) return stored;
+  if (t.outcome === "OPEN" || t.outcome === "BE") return t.accountIds.length <= 1 ? t.pnl : 0;
+
+  const linked = accounts.filter((a) => t.accountIds.includes(a.id) && a.balance > 0);
+  if (linked.length <= 1) return t.pnl;
+
+  const outcome = asClosedOutcome(t.outcome);
+  const guesses = linked.map((a) => ({
+    a,
+    s: suggestPnl({ outcome, risk: t.risk, rr: t.rr, balance: a.balance }),
+  }));
+  const withGuess = guesses.filter((g) => g.s !== 0);
+  const pool = withGuess.length ? withGuess : guesses;
+  const ref =
+    pool.find((g) => Math.abs(g.s - t.pnl) < 0.05) ||
+    pool.reduce((best, g) => (Math.abs(g.s - t.pnl) < Math.abs(best.s - t.pnl) ? g : best));
+
+  if (ref.a.balance > 0 && (t.pnl !== 0 || ref.s !== 0)) {
+    const basis = t.pnl !== 0 ? t.pnl : ref.s;
+    return money2(basis * (account.balance / ref.a.balance));
+  }
+  return suggestPnl({ outcome, risk: t.risk, rr: t.rr, balance: account.balance });
+}
+
+/** Combined P&L across every linked account (or the stored trade total when unlinked). */
+export function tradeTotalPnl(t: PnlTrade, accounts: PnlAccount[]) {
+  const linked = accounts.filter((a) => t.accountIds.includes(a.id));
+  if (linked.length <= 1) return t.pnl;
+  return money2(linked.reduce((s, a) => s + tradePnlForAccount(t, a, accounts), 0));
+}
+
+export function realizedPnl(t: PnlTrade, accounts: PnlAccount[], accountId?: string) {
+  if (accountId && accountId !== "All Accounts") {
+    const account = accounts.find((a) => a.id === accountId);
+    return account ? tradePnlForAccount(t, account, accounts) : 0;
+  }
+  return tradeTotalPnl(t, accounts);
+}
+
 export function rrFromPips(sl: string, tp: string) {
   const s = Number(sl);
   const t = Number(tp);

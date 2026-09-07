@@ -52,6 +52,8 @@ export type Trade = {
   risk: string;
   outcome: TradeOutcome;
   pnl: number;
+  /** Per-account P&L when one trade is copied to accounts of different sizes. */
+  accountPnls?: Record<string, number>;
   psychology: string[];
   checklistName: string;
   rules: { text: string; checked: boolean }[];
@@ -463,6 +465,12 @@ function normalizeData(raw: Partial<StoreData> | undefined, profile: Profile): S
     accountIds: Array.isArray(t.accountIds) ? t.accountIds : [],
     outcome: t.outcome || "OPEN",
     pnl: typeof t.pnl === "number" ? t.pnl : 0,
+    accountPnls:
+      t.accountPnls && typeof t.accountPnls === "object" && !Array.isArray(t.accountPnls)
+        ? Object.fromEntries(
+            Object.entries(t.accountPnls).filter(([, n]) => typeof n === "number" && Number.isFinite(n))
+          )
+        : undefined,
   }));
   const bothSeedZero =
     trades.some((t) => t.id === "t1" && t.pnl === 0 && t.outcome === "LOSS") &&

@@ -16,7 +16,7 @@ import { useMenu } from "../hooks";
 import { useModal } from "../context/ModalContext";
 import { useToast } from "../context/ToastContext";
 import { useStore, type Account } from "../store";
-import { formatPnl } from "../lib";
+import { formatPnl, tradePnlForAccount } from "../lib";
 
 function money(n: number) {
   return n.toLocaleString("en-US", { style: "currency", currency: "USD" });
@@ -162,8 +162,11 @@ function AccountCard({
 }) {
   const { data } = useStore();
   const linked = data.trades.filter((t) => t.accountIds.includes(a.id));
-  const net = linked.reduce((s, t) => s + t.pnl, 0);
-  const gross = linked.filter((t) => t.pnl > 0).reduce((s, t) => s + t.pnl, 0);
+  const net = linked.reduce((s, t) => s + tradePnlForAccount(t, a, data.accounts), 0);
+  const gross = linked
+    .map((t) => tradePnlForAccount(t, a, data.accounts))
+    .filter((n) => n > 0)
+    .reduce((s, n) => s + n, 0);
   const targetPct = Number.parseFloat(a.target) || (a.type === "Prop" ? 10 : 0);
   const goal = a.balance * (targetPct / 100);
   const progress = goal > 0 ? Math.min(100, Math.max(0, (net / goal) * 100)) : 0;
@@ -317,7 +320,7 @@ function PhaseCheckModal({
   const { data } = useStore();
   const rows = useMemo(() => {
     const linked = data.trades.filter((t) => t.accountIds.includes(account.id));
-    const net = linked.reduce((s, t) => s + t.pnl, 0);
+    const net = linked.reduce((s, t) => s + tradePnlForAccount(t, account, data.accounts), 0);
     const targetPct = Number.parseFloat(account.target) || 10;
     const drawdownPct = Number.parseFloat(account.drawdown) || 10;
     const goal = account.balance * (targetPct / 100);
@@ -359,7 +362,7 @@ function PhaseCheckModal({
         },
       ],
     };
-  }, [account, data.trades]);
+  }, [account, data.trades, data.accounts]);
 
   return (
     <Modal title="Phase Check" subtitle={account.name} onClose={onClose} stacked icon={

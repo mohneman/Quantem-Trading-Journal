@@ -19,7 +19,7 @@ import { Button } from "../ui/Button";
 import { useModal } from "../../context/ModalContext";
 import { useToast } from "../../context/ToastContext";
 import { useStore, type Trade } from "../../store";
-import { formatPnl, suggestPnl } from "../../lib";
+import { formatPnl, suggestPnl, tradePnlForAccount, tradeTotalPnl } from "../../lib";
 import { ImageProofField } from "../ui/ImageProofField";
 
 export function TradeViewModal({ onClose, tradeId }: { onClose: () => void; tradeId: string }) {
@@ -31,6 +31,7 @@ export function TradeViewModal({ onClose, tradeId }: { onClose: () => void; trad
   const bias = t.direction === "Sell" ? "Bearish" : t.direction === "Buy" ? "Bullish" : "—";
   const linked = data.accounts.filter((a) => t.accountIds.includes(a.id));
   const phase = linked[0]?.status || linked[0]?.challengeType || "N/A";
+  const combinedPnl = tradeTotalPnl(t, data.accounts);
   return (
     <Modal title={`${t.symbol || "Trade"} Trade`} subtitle={`${t.date} • #${t.no}`} onClose={onClose} xl>
       <div className="mb-4 flex items-start justify-between gap-3">
@@ -57,7 +58,7 @@ export function TradeViewModal({ onClose, tradeId }: { onClose: () => void; trad
           >
             {t.outcome === "WIN" ? "Win" : t.outcome === "LOSS" ? "Loss" : t.outcome === "BE" ? "BE" : "Open"}
           </MetaPill>
-          <MetaPill className="bg-amber-50 text-amber-600" icon={<Link2 size={12} />}>{formatPnl(t.pnl)}</MetaPill>
+          <MetaPill className="bg-amber-50 text-amber-600" icon={<Link2 size={12} />}>{formatPnl(combinedPnl)}</MetaPill>
           <MetaPill className="bg-indigo-50 text-indigo-600" icon={<ClipboardList size={12} />}>{`Phase: ${phase}`}</MetaPill>
         </div>
         <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-emerald-50 text-lg font-bold text-brand dark:bg-brand/15">
@@ -72,6 +73,16 @@ export function TradeViewModal({ onClose, tradeId }: { onClose: () => void; trad
         <p><span className="text-ink-muted">Date:</span> {t.date}</p>
         <p><span className="text-ink-muted">Risk:</span> {t.risk || "—"}</p>
         <p><span className="text-ink-muted">R:R:</span> {t.rr || "—"}</p>
+        {linked.length ? (
+          <div className="mt-2 space-y-1">
+            {linked.map((a) => (
+              <p key={a.id}>
+                <span className="text-ink-muted">{a.name} ({`$${a.balance.toLocaleString()}`}):</span>{" "}
+                {formatPnl(tradePnlForAccount(t, a, data.accounts))}
+              </p>
+            ))}
+          </div>
+        ) : null}
       </div>
 
       <h3 className="mb-2 mt-5 font-semibold dark:text-white">Trade Checklist Analysis</h3>
@@ -176,22 +187,83 @@ function OutcomeForm({
   const [applied, setApplied] = useState(t.afterUrl);
   const [notes, setNotes] = useState(t.notes);
   const [accounts, setAccounts] = useState<string[]>(t.accountIds);
+  const linkedAccounts = data.accounts.filter((a) => accounts.includes(a.id));
   const linkedBalance =
-    accounts.map((id) => data.accounts.find((a) => a.id === id)?.balance ?? 0).find((n) => n > 0) ??
-    data.accounts[0]?.balance ??
-    10_000;
+    linkedAccounts.find((a) => a.balance > 0)?.balance ?? data.accounts[0]?.balance ?? 10_000;
+
+  function suggestedMap(outcome: Trade["outcome"], ids: string[]) {
+    const next: Record<string, string> = {};
+    for (const id of ids) {
+      const a = data.accounts.find((x) => x.id === id);
+      next[id] = String(suggestPnl({ outcome, risk: t.risk, rr: t.rr, balance: a?.balance ?? linkedBalance }));
+    }
+    return next;
+  }
+
+  const [accountPnls, setAccountPnls] = useState<Record<string, string>>(() => {
+    if (!t.accountIds.length) return {};
+    if (t.outcome !== "OPEN" && (t.accountPnls || t.pnl !== 0)) {
+      const next: Record<string, string> = {};
+      for (const id of t.accountIds) {
+        const a = data.accounts.find((x) => x.id === id);
+        next[id] = String(a ? tradePnlForAccount(t, a, data.accounts) : 0);
+      }
+      return next;
+    }
+    return suggestedMap(t.outcome === "OPEN" ? "LOSS" : t.outcome, t.accountIds);
+  });
   const [pnl, setPnl] = useState(() =>
     String(
       t.outcome !== "OPEN" && t.pnl !== 0
-        ? t.pnl
-        : suggestPnl({ outcome: t.outcome === "OPEN" ? "LOSS" : t.outcome, risk: t.risk, rr: t.rr, balance: linkedBalance })
+        ? t.accountIds.length > 1
+          ? tradeTotalPnl(t, data.accounts)
+          : t.pnl
+        : suggestPnl({
+            outcome: t.outcome === "OPEN" ? "LOSS" : t.outcome,
+            risk: t.risk,
+            rr: t.rr,
+            balance: linkedBalance,
+          })
     )
   );
   const bias = t.direction === "Sell" ? "Bearish" : t.direction === "Buy" ? "Bullish" : "—";
+  const perAccount = linkedAccounts.length > 0;
+  const combinedFromAccounts = linkedAccounts.reduce((s, a) => s + (Number(accountPnls[a.id]) || 0), 0);
 
   function pickOutcome(key: "WIN" | "LOSS" | "BE") {
     setOut(key);
-    setPnl(String(suggestPnl({ outcome: key, risk: t.risk, rr: t.rr, balance: linkedBalance })));
+    const next = suggestedMap(key, accounts);
+    setAccountPnls(next);
+    setPnl(
+      String(
+        accounts.length
+          ? Object.values(next).reduce((s, n) => s + (Number(n) || 0), 0)
+          : suggestPnl({ outcome: key, risk: t.risk, rr: t.rr, balance: linkedBalance })
+      )
+    );
+  }
+
+  function toggleAccount(id: string) {
+    setAccounts((prev) => {
+      const on = prev.includes(id);
+      const ids = on ? prev.filter((x) => x !== id) : [...prev, id];
+      setAccountPnls((cur) => {
+        const next = { ...cur };
+        if (on) delete next[id];
+        else {
+          next[id] = String(
+            suggestPnl({
+              outcome: out as Trade["outcome"],
+              risk: t.risk,
+              rr: t.rr,
+              balance: data.accounts.find((a) => a.id === id)?.balance,
+            })
+          );
+        }
+        return next;
+      });
+      return ids;
+    });
   }
 
   return (
@@ -239,16 +311,42 @@ function OutcomeForm({
       <p className="mb-2 mt-5 flex items-center gap-2 font-semibold dark:text-white">
         <Wallet size={16} /> Realized P&amp;L (USD)
       </p>
-      <input
-        className="input"
-        type="number"
-        step="0.01"
-        value={pnl}
-        onChange={(e) => setPnl(e.target.value)}
-      />
-      <p className="mt-1 text-[11px] text-ink-faint">
-        Suggested from risk {t.risk || "—"} and R:R {t.rr || "—"} on a ${linkedBalance.toLocaleString()} account. Override with the actual fill.
-      </p>
+      {perAccount ? (
+        <div className="space-y-2">
+          {linkedAccounts.map((a) => (
+            <label key={a.id} className="block">
+              <span className="mb-1 block text-xs text-ink-muted">
+                {a.name} · ${a.balance.toLocaleString()} · {t.risk || "risk"}
+              </span>
+              <input
+                className="input"
+                type="number"
+                step="0.01"
+                value={accountPnls[a.id] ?? ""}
+                onChange={(e) => setAccountPnls((p) => ({ ...p, [a.id]: e.target.value }))}
+              />
+            </label>
+          ))}
+          <p className="text-sm font-semibold dark:text-white">Combined: {formatPnl(combinedFromAccounts)}</p>
+          <p className="text-[11px] text-ink-faint">
+            Each account uses {t.risk || "your risk %"} of its own size. Override a row if the fill differed.
+          </p>
+        </div>
+      ) : (
+        <>
+          <input
+            className="input"
+            type="number"
+            step="0.01"
+            value={pnl}
+            onChange={(e) => setPnl(e.target.value)}
+          />
+          <p className="mt-1 text-[11px] text-ink-faint">
+            Suggested from risk {t.risk || "—"} and R:R {t.rr || "—"}
+            {linkedAccounts[0] ? ` on ${linkedAccounts[0].name} ($${linkedBalance.toLocaleString()})` : ""}. Override with the actual fill.
+          </p>
+        </>
+      )}
 
       <p className="mb-2 mt-5 flex items-center gap-2 font-semibold dark:text-white">
         <ImageIcon size={16} className="text-purple-brand" /> After Screenshot (Proof)
@@ -268,7 +366,7 @@ function OutcomeForm({
               <button
                 key={a.id}
                 type="button"
-                onClick={() => setAccounts((p) => (on ? p.filter((x) => x !== a.id) : [...p, a.id]))}
+                onClick={() => toggleAccount(a.id)}
                 className={`rounded-full px-3 py-1.5 text-xs font-medium transition hover:-translate-y-0.5 ${on ? "bg-purple-brand text-white" : "bg-slate-100 dark:bg-white/10"}`}
               >
                 {a.name}
@@ -287,12 +385,16 @@ function OutcomeForm({
         <Button
           variant="primary"
           onClick={() => {
+            const pnls = accounts.length
+              ? Object.fromEntries(accounts.map((id) => [id, Number(accountPnls[id]) || 0]))
+              : undefined;
             updateTrade(t.id, {
               outcome: out as Trade["outcome"],
               afterUrl: applied,
               notes,
               accountIds: accounts,
-              pnl: Number(pnl) || 0,
+              pnl: pnls ? Object.values(pnls).reduce((s, n) => s + n, 0) : Number(pnl) || 0,
+              accountPnls: pnls,
             });
             toast("Trade details saved");
             onClose();

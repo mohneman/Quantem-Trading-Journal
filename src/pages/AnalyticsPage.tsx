@@ -38,7 +38,7 @@ import { Select } from "../components/ui/Field";
 import { Badge } from "../components/ui/Badge";
 import { useMenu } from "../hooks";
 import { useStore } from "../store";
-import { formatPnl, parseRr, printSection, weekdayShort } from "../lib";
+import { formatPnl, realizedPnl, tradePnlForAccount, parseRr, printSection, weekdayShort } from "../lib";
 
 const WIN = "#22C55E";
 const LOSS = "#EF4444";
@@ -61,15 +61,17 @@ export function AnalyticsPage() {
 
   const trades = useMemo(
     () =>
-      data.trades.filter((t) => {
-        if (symbol !== "All Symbols" && t.symbol !== symbol) return false;
-        if (session !== "All Sessions" && t.session !== session) return false;
-        if (account !== "All Accounts" && !t.accountIds.includes(account)) return false;
-        if (start && t.date < start) return false;
-        if (end && t.date > end) return false;
-        return true;
-      }),
-    [data.trades, account, symbol, session, start, end]
+      data.trades
+        .filter((t) => {
+          if (symbol !== "All Symbols" && t.symbol !== symbol) return false;
+          if (session !== "All Sessions" && t.session !== session) return false;
+          if (account !== "All Accounts" && !t.accountIds.includes(account)) return false;
+          if (start && t.date < start) return false;
+          if (end && t.date > end) return false;
+          return true;
+        })
+        .map((t) => ({ ...t, pnl: realizedPnl(t, data.accounts, account) })),
+    [data.trades, data.accounts, account, symbol, session, start, end]
   );
 
   const closed = trades.filter((t) => t.outcome === "WIN" || t.outcome === "LOSS");
@@ -683,7 +685,7 @@ export function AnalyticsPage() {
             <ChartCard title="Accounts" sub="Linked account P&L" icon={<Briefcase size={15} />} iconBg="bg-emerald-100 text-emerald-600" tint="from-emerald-50/90">
               <ul className="space-y-2 text-sm">
                 {data.accounts.map((a) => {
-                  const net = data.trades.filter((t) => t.accountIds.includes(a.id)).reduce((s, t) => s + t.pnl, 0);
+                  const net = data.trades.reduce((s, t) => s + tradePnlForAccount(t, a, data.accounts), 0);
                   return (
                     <li key={a.id} className="flex items-center justify-between rounded-lg px-1 py-1 transition hover:bg-white/70 dark:hover:bg-white/5">
                       <span className="font-medium dark:text-white">{a.name}</span>

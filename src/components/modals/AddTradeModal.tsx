@@ -20,7 +20,7 @@ import { defaultChecklist, psychologyTags } from "../../data";
 import { useStore } from "../../store";
 import { useModal } from "../../context/ModalContext";
 import { useToast } from "../../context/ToastContext";
-import { gradeFromChecked, rrFromPips, todayIso } from "../../lib";
+import { gradeFromChecked, parseRiskPct, rrFromPips, todayIso } from "../../lib";
 import { ChecklistSettingsModal } from "./ChecklistSettingsModal";
 
 export function AddTradeModal({ onClose, tradeId, initialDate }: { onClose: () => void; tradeId?: string; initialDate?: string }) {
@@ -299,6 +299,21 @@ export function AddTradeModal({ onClose, tradeId, initialDate }: { onClose: () =
               })}
             </div>
           )}
+          {accounts.length > 0 && parseRiskPct(risk) > 0 ? (
+            <ul className="mt-3 space-y-1 text-xs text-ink-muted">
+              {accounts.map((id) => {
+                const a = data.accounts.find((x) => x.id === id);
+                if (!a) return null;
+                const amt = (a.balance * parseRiskPct(risk)) / 100;
+                return (
+                  <li key={id}>
+                    {a.name}: {parseRiskPct(risk)}% of ${a.balance.toLocaleString()} ={" "}
+                    <span className="font-semibold text-ink dark:text-white">${amt.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}</span>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : null}
         </div>
 
         <div className="rounded-2xl border border-rose-100 bg-rose-50/70 p-4 dark:border-red-500/20 dark:bg-red-500/10">

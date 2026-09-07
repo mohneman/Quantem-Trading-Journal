@@ -26,7 +26,7 @@ import {
 import { PageHeader } from "../components/layout/PageHeader";
 import { Badge } from "../components/ui/Badge";
 import { useMenu } from "../hooks";
-import { formatPnl, journalPreview, parseRr, weekdayShort } from "../lib";
+import { formatPnl, journalPreview, parseRr, tradeTotalPnl, weekdayShort } from "../lib";
 import { TODAY_ISO } from "../data";
 import { useStore, type Trade } from "../store";
 import { useModal } from "../context/ModalContext";
@@ -44,7 +44,11 @@ export function DashboardPage() {
   const [hoverWeek, setHoverWeek] = useState<number | null>(null);
 
   const cutoff = range === "All" ? "2000-01-01" : daysBack(range);
-  const trades = data.trades.filter((t) => t.date >= cutoff && t.outcome !== "OPEN");
+  const scaledTrades = useMemo(
+    () => data.trades.map((t) => ({ ...t, pnl: tradeTotalPnl(t, data.accounts) })),
+    [data.trades, data.accounts]
+  );
+  const trades = scaledTrades.filter((t) => t.date >= cutoff && t.outcome !== "OPEN");
   const wins = trades.filter((t) => t.outcome === "WIN").length;
   const losses = trades.filter((t) => t.outcome === "LOSS").length;
   const closed = wins + losses;
@@ -53,11 +57,11 @@ export function DashboardPage() {
   const avgRr =
     trades.length === 0 ? 0 : trades.reduce((s, t) => s + parseRr(t.rr), 0) / trades.length;
 
-  const weekRows = useMemo(() => weeksOfMonth(month.y, month.m, data.trades), [month, data.trades]);
-  const dayTrades = data.trades.filter((t) => t.date === selected);
+  const weekRows = useMemo(() => weeksOfMonth(month.y, month.m, scaledTrades), [month, scaledTrades]);
+  const dayTrades = scaledTrades.filter((t) => t.date === selected);
   const dayPnl = dayTrades.reduce((s, t) => s + t.pnl, 0);
   const dayJournal = data.journals.find((j) => j.date === selected);
-  const recent = [...data.trades].sort((a, b) => b.date.localeCompare(a.date) || b.no - a.no).slice(0, 8);
+  const recent = [...scaledTrades].sort((a, b) => b.date.localeCompare(a.date) || b.no - a.no).slice(0, 8);
 
   const equity = cumulative(trades);
   const dow = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => ({
@@ -126,7 +130,7 @@ export function DashboardPage() {
           <MonthCalendar
             year={month.y}
             month={month.m}
-            trades={data.trades}
+            trades={scaledTrades}
             selected={selected}
             hoverWeek={hoverWeek}
             onSelect={pickDay}
