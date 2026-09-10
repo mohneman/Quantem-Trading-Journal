@@ -133,6 +133,21 @@ if ($method === "POST" && $route === "auth/forgot") {
   send_json(["error" => null, "token" => $token]);
 }
 
+if ($method === "POST" && $route === "auth/password") {
+  $user = require_user($db);
+  $body = json_input();
+  $current = (string) ($body["currentPassword"] ?? "");
+  $password = (string) ($body["password"] ?? "");
+  if (strlen($password) < 6) fail("Password must be at least 6 characters.");
+  $hash = (string) ($user["password_hash"] ?? "");
+  if ($hash !== "") {
+    if ($current === "" || !password_verify($current, $hash)) fail("Current password is incorrect.");
+  }
+  $db->prepare("UPDATE q_users SET password_hash = ?, reset_token = NULL, provider = 'email' WHERE id = ?")
+    ->execute([password_hash($password, PASSWORD_DEFAULT), $user["id"]]);
+  send_json(["ok" => true]);
+}
+
 if ($method === "POST" && $route === "auth/reset") {
   $body = json_input();
   $email = strtolower(trim((string) ($body["email"] ?? "")));

@@ -131,7 +131,7 @@ export function JournalsPage() {
                   {journals.length} {journals.length === 1 ? "day" : "days"}
                 </span>
               </div>
-              <div className="mt-4 overflow-x-auto">
+              <div className="table-scroll mt-4">
                 <table className="min-w-full text-left text-sm">
                   <thead>
                     <tr className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">

@@ -80,17 +80,23 @@ export function Sidebar({ open, onClose }: Props) {
   return (
     <>
       <div
-        className={`fixed inset-0 z-30 bg-slate-900/40 lg:hidden ${open ? "block" : "hidden"}`}
+        className={`fixed inset-0 z-40 bg-slate-900/45 backdrop-blur-[2px] transition-opacity lg:hidden ${
+          open ? "opacity-100" : "pointer-events-none opacity-0"
+        }`}
         onClick={onClose}
       />
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex w-[250px] flex-col border-r border-line bg-white transition-transform dark:border-[#243041] dark:bg-[#10151c] lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 flex w-[min(280px,88vw)] flex-col border-r border-line bg-white shadow-[8px_0_40px_rgba(15,23,42,0.12)] transition-transform duration-300 ease-out dark:border-[#243041] dark:bg-[#10151c] lg:w-[280px] lg:translate-x-0 lg:rounded-none lg:shadow-none ${
           open ? "translate-x-0" : "-translate-x-full"
-        }`}
+        } max-lg:rounded-r-[28px]`}
       >
-        <div className="flex items-center justify-between px-5 py-5">
+        <div className="flex items-center justify-between px-5 pb-4 pt-[max(1.25rem,env(safe-area-inset-top))]">
           <LogoLockup size={34} />
-          <button className="rounded-lg p-1 text-ink-muted lg:hidden" onClick={onClose}>
+          <button
+            className="grid h-9 w-9 place-items-center rounded-full bg-slate-100 text-ink-muted lg:hidden dark:bg-white/10"
+            onClick={onClose}
+            aria-label="Close navigation"
+          >
             <X size={18} />
           </button>
         </div>
@@ -115,7 +121,7 @@ export function Sidebar({ open, onClose }: Props) {
                         to={item.to}
                         end={item.end}
                         onClick={onClose}
-                        className={`relative flex items-center gap-2.5 rounded-xl px-3 py-2 text-[13.5px] font-medium transition-all duration-200 ${
+                        className={`relative flex items-center gap-2.5 rounded-2xl px-3 py-2.5 text-[13.5px] font-medium transition-all duration-200 ${
                           active
                             ? "bg-white text-ink shadow-soft dark:bg-white/10 dark:text-white"
                             : "text-ink-muted hover:translate-x-0.5 hover:bg-slate-50 hover:text-ink dark:hover:bg-white/5 dark:hover:text-white"
@@ -150,7 +156,7 @@ export function Sidebar({ open, onClose }: Props) {
 export function MenuButton({ onClick }: { onClick: () => void }) {
   return (
     <button
-      className="rounded-xl border border-line bg-white p-2 text-ink-muted shadow-soft lg:hidden dark:border-[#243041] dark:bg-[#151a21]"
+      className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-slate-100 text-ink lg:hidden dark:bg-white/10 dark:text-slate-100"
       onClick={onClick}
       aria-label="Open navigation"
     >

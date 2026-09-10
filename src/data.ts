@@ -1,5 +1,7 @@
-export const TODAY_LABEL = "Tuesday, Aug 18";
-export const TODAY_ISO = "2026-08-18";
+import { todayIso, todayLabel } from "./lib";
+
+export const TODAY_LABEL = todayLabel();
+export const TODAY_ISO = todayIso();
 
 export const user = {
   name: "ali ahmed",
@@ -7,14 +9,6 @@ export const user = {
   phone: "251962091945",
   initials: "AA",
 };
-
-export const defaultChecklist = [
-  "Soo hel Trend-ka (H1/H4 for S1) (15M for S2/S3) (5M for S4)",
-  "Soo hel Zone-ka maamulaya Order Flow-ga suuqa.",
-  "Sug in Liquidity-ga lagu jebiyo Reversal Volume muuqda.",
-  "Hubi in Volume-ka uu keeno Countertrend Break.",
-  "Hubi in Momentum-ku la jaanqaadayo direction-ka.",
-];
 
 export const psychologyTags = [
   "FOMO",

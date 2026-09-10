@@ -4,26 +4,27 @@ import { Modal } from "../ui/Modal";
 import { Field, Input, Select, TextArea } from "../ui/Field";
 import { Button } from "../ui/Button";
 import { ImageProofField } from "../ui/ImageProofField";
-import { defaultChecklist, TODAY_ISO } from "../../data";
 import { useStore } from "../../store";
 import { useToast } from "../../context/ToastContext";
+import { todayIso } from "../../lib";
 import { ChecklistSettingsModal } from "./ChecklistSettingsModal";
 
 export function AddBacktestModal({ onClose, backtestId }: { onClose: () => void; backtestId?: string }) {
   const { data, addBacktest, updateBacktest, addSymbol } = useStore();
   const { toast } = useToast();
   const existing = data.backtests.find((b) => b.id === backtestId);
-  const startItems = existing?.rules.map((r) => r.text) ?? defaultChecklist;
-  const [checklistId, setChecklistId] = useState("default");
+  const startItems = existing?.rules.map((r) => r.text) ?? [];
+  const [checklistId, setChecklistId] = useState(() => {
+    if (!existing?.rules.length) return "";
+    return data.checklists.find((c) => c.items.join("|") === startItems.join("|"))?.id ?? "existing";
+  });
   const items =
-    existing && checklistId === "default"
+    checklistId === "existing"
       ? startItems
-      : checklistId === "default"
-        ? defaultChecklist
-        : data.checklists.find((c) => c.id === checklistId)?.items ?? defaultChecklist;
+      : data.checklists.find((c) => c.id === checklistId)?.items ?? [];
   const [checked, setChecked] = useState(existing?.rules.map((r) => r.checked) ?? items.map(() => false));
   const [result, setResult] = useState<"WIN" | "LOSS" | null>(existing?.result ?? null);
-  const [date, setDate] = useState(existing?.date ?? TODAY_ISO);
+  const [date, setDate] = useState(existing?.date ?? todayIso());
   const [symbol, setSymbol] = useState(existing?.symbol ?? "");
   const [direction, setDirection] = useState(existing?.direction ?? "");
   const [scenario, setScenario] = useState(existing?.scenario ?? "");
@@ -111,18 +112,26 @@ export function AddBacktestModal({ onClose, backtestId }: { onClose: () => void;
                 value={checklistId}
                 onChange={(e) => {
                   setChecklistId(e.target.value);
-                  const next = e.target.value === "default" ? defaultChecklist : data.checklists.find((c) => c.id === e.target.value)?.items ?? defaultChecklist;
+                  const next =
+                    e.target.value === "existing"
+                      ? startItems
+                      : data.checklists.find((c) => c.id === e.target.value)?.items ?? [];
                   setChecked(next.map(() => false));
                 }}
               >
-                <option value="default">Default Checklist</option>
+                <option value="">None</option>
+                {checklistId === "existing" ? <option value="existing">Saved on this trade</option> : null}
                 {data.checklists.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
               </Select>
             </div>
             <button className="btn-primary mt-5 h-11 text-xs" onClick={() => setShowChecklist(true)}>+ Create Custom Checklist</button>
           </div>
           <ul className="space-y-2">
-            {items.map((item, i) => (
+            {items.length === 0 ? (
+              <li className="rounded-xl bg-white px-3 py-4 text-sm text-ink-faint dark:bg-[#151a21]">
+                No checklist selected. Create one, or save without a checklist.
+              </li>
+            ) : items.map((item, i) => (
               <li key={`${item}-${i}`}>
                 <button
                   type="button"

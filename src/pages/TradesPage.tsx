@@ -14,7 +14,7 @@ import { useMenu } from "../hooks";
 import { useModal } from "../context/ModalContext";
 import { useStore, type Trade, type TradeOutcome } from "../store";
 import { TODAY_ISO } from "../data";
-import { formatPnl } from "../lib";
+import { formatPnl, tradeTotalPnl } from "../lib";
 
 const ranges = ["All Time", "Last 7 days", "Last 14 days", "Last 30 days", "Last 90 days", "Custom"] as const;
 
@@ -60,21 +60,23 @@ export function TradesPage() {
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
 
-  const trades = data.trades.filter((t) => {
-    if (range === "Custom") {
-      if (customFrom && t.date < customFrom) return false;
-      if (customTo && t.date > customTo) return false;
-    } else if (t.date < cutoff(range)) {
-      return false;
-    }
-    if (q && !`${t.symbol} ${t.notes} ${t.no} ${t.psychology.join(" ")}`.toLowerCase().includes(q.toLowerCase())) {
-      return false;
-    }
-    if (grade !== "All Grades" && t.grade !== grade) return false;
-    if (status !== "All Status" && t.outcome !== status) return false;
-    if (pair !== "All Pairs" && t.symbol !== pair) return false;
-    return true;
-  });
+  const trades = data.trades
+    .filter((t) => {
+      if (range === "Custom") {
+        if (customFrom && t.date < customFrom) return false;
+        if (customTo && t.date > customTo) return false;
+      } else if (t.date < cutoff(range)) {
+        return false;
+      }
+      if (q && !`${t.symbol} ${t.notes} ${t.no} ${t.psychology.join(" ")}`.toLowerCase().includes(q.toLowerCase())) {
+        return false;
+      }
+      if (grade !== "All Grades" && t.grade !== grade) return false;
+      if (status !== "All Status" && t.outcome !== status) return false;
+      if (pair !== "All Pairs" && t.symbol !== pair) return false;
+      return true;
+    })
+    .map((t) => ({ ...t, pnl: tradeTotalPnl(t, data.accounts) }));
   const wins = trades.filter((t) => t.outcome === "WIN").length;
   const losses = trades.filter((t) => t.outcome === "LOSS").length;
   const aplus = trades.filter((t) => t.grade === "A+").length;
@@ -202,7 +204,7 @@ export function TradesPage() {
             <p className="mt-1 text-sm text-ink-muted">Try a different search, grade, status, pair, or date range.</p>
           </div>
         ) : (
-          <div className="mt-4 overflow-x-auto">
+          <div className="table-scroll mt-4">
             <table className="trade-table min-w-full text-left text-sm">
               <thead className="text-[10px] uppercase tracking-[0.14em] text-ink-faint">
                 <tr>

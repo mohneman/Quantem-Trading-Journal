@@ -9,7 +9,6 @@ import {
   type ReactNode,
 } from "react";
 import {
-  defaultChecklist,
   TODAY_ISO,
   user as seedUser,
 } from "./data";
@@ -52,6 +51,8 @@ export type Trade = {
   risk: string;
   outcome: TradeOutcome;
   pnl: number;
+  /** Per-account P&L when one trade is copied to accounts of different sizes. */
+  accountPnls?: Record<string, number>;
   psychology: string[];
   checklistName: string;
   rules: { text: string; checked: boolean }[];
@@ -237,8 +238,8 @@ function seedData(profile: Profile): StoreData {
     outcome: "LOSS",
     pnl: -100,
     psychology: ["Calm"],
-    checklistName: "Default Checklist",
-    rules: defaultChecklist.map((text) => ({ text, checked: true })),
+    checklistName: "",
+    rules: [],
     notes: "",
     proofUrl: "",
     afterUrl: "",
@@ -259,8 +260,8 @@ function seedData(profile: Profile): StoreData {
     outcome: "WIN",
     pnl: 400,
     psychology: ["Calm"],
-    checklistName: "Default Checklist",
-    rules: defaultChecklist.map((text) => ({ text, checked: true })),
+    checklistName: "",
+    rules: [],
     notes: "waan ku dagdag oo kale",
     proofUrl: "",
     afterUrl: "",
@@ -463,6 +464,12 @@ function normalizeData(raw: Partial<StoreData> | undefined, profile: Profile): S
     accountIds: Array.isArray(t.accountIds) ? t.accountIds : [],
     outcome: t.outcome || "OPEN",
     pnl: typeof t.pnl === "number" ? t.pnl : 0,
+    accountPnls:
+      t.accountPnls && typeof t.accountPnls === "object" && !Array.isArray(t.accountPnls)
+        ? Object.fromEntries(
+            Object.entries(t.accountPnls).filter(([, n]) => typeof n === "number" && Number.isFinite(n))
+          )
+        : undefined,
   }));
   const bothSeedZero =
     trades.some((t) => t.id === "t1" && t.pnl === 0 && t.outcome === "LOSS") &&
@@ -583,6 +590,7 @@ type Ctx = {
   googleContinue: (profile: GoogleProfile) => Promise<AuthResult>;
   requestReset: (email: string) => Promise<{ error: string | null; token?: string }>;
   resetPassword: (email: string, token: string, password: string) => Promise<string | null>;
+  changePassword: (currentPassword: string, password: string) => Promise<string | null>;
   logout: () => void;
   adminCreateUser: (input: {
     name: string;
@@ -871,6 +879,28 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     return null;
   };
 
+  const changePassword = async (currentPassword: string, password: string) => {
+    if (password.length < 6) return "Password must be at least 6 characters.";
+    if (!currentUser) return "You must be signed in.";
+    if (remoteRef.current) {
+      try {
+        await api.apiChangePassword(currentPassword, password);
+        return null;
+      } catch (err) {
+        return err instanceof Error ? err.message : "Password update failed.";
+      }
+    }
+    if (currentUser.password && currentUser.password !== currentPassword) {
+      return "Current password is incorrect.";
+    }
+    setUsers((p) =>
+      p.map((u) =>
+        u.id === currentUser.id ? { ...u, password, provider: "email", resetToken: undefined } : u
+      )
+    );
+    return null;
+  };
+
   const logout = () => {
     if (remoteRef.current) void api.apiLogout();
     else api.setApiToken(null);
@@ -1100,6 +1130,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       googleContinue,
       requestReset,
       resetPassword,
+      changePassword,
       logout,
       adminCreateUser,
       adminUpdateUser,
@@ -1291,7 +1322,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         return link;
       },
     };
-  }, [session, currentUser, users, data, patchData, remote, login, signup, googleContinue, requestReset, resetPassword, logout, adminCreateUser, adminUpdateUser, adminSetPassword, adminDeleteUser, adminResetUserData]);
+  }, [session, currentUser, users, data, patchData, remote, login, signup, googleContinue, requestReset, resetPassword, changePassword, logout, adminCreateUser, adminUpdateUser, adminSetPassword, adminDeleteUser, adminResetUserData]);
 
   if (!ready) {
     return (

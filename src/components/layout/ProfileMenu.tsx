@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import {
-  Bolt,
   CheckSquare,
   LifeBuoy,
   LogOut,
@@ -39,15 +38,6 @@ export function ProfileMenu() {
     <div ref={ref} className="relative border-t border-line px-3 py-3 dark:border-[#243041]">
       {open ? (
         <div className="animate-details-in absolute bottom-[72px] left-3 right-3 z-50 overflow-hidden rounded-2xl border border-line bg-white shadow-modal dark:border-[#243041] dark:bg-[#151a21]">
-          <button
-            className={`${item} bg-brand/10 font-semibold text-brand hover:bg-brand/15`}
-            onClick={() => {
-              setModal("upgrade");
-              setOpen(false);
-            }}
-          >
-            <Bolt size={16} /> Upgrade Plan
-          </button>
           <button
             className={`${item} text-ink hover:bg-slate-50 dark:text-slate-100 dark:hover:bg-white/5`}
             onClick={() => {

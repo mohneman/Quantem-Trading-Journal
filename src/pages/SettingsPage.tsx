@@ -111,7 +111,7 @@ export function SettingsPage() {
           />
         </div>
 
-        <div className="mt-4 overflow-x-auto">
+        <div className="table-scroll mt-4">
           <table className="min-w-full text-left text-sm">
             <thead className="border-y border-line bg-slate-50 text-[11px] uppercase tracking-wide text-ink-faint dark:border-[#243041] dark:bg-white/5">
               <tr>

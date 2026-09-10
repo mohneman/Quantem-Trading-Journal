@@ -16,11 +16,11 @@ import { Modal } from "../ui/Modal";
 import { Field, Input, Select, TextArea } from "../ui/Field";
 import { Button } from "../ui/Button";
 import { ImageProofField } from "../ui/ImageProofField";
-import { defaultChecklist, psychologyTags, TODAY_ISO } from "../../data";
+import { psychologyTags } from "../../data";
 import { useStore } from "../../store";
 import { useModal } from "../../context/ModalContext";
 import { useToast } from "../../context/ToastContext";
-import { gradeFromChecked, rrFromPips } from "../../lib";
+import { gradeFromChecked, parseRiskPct, rrFromPips, todayIso } from "../../lib";
 import { ChecklistSettingsModal } from "./ChecklistSettingsModal";
 
 export function AddTradeModal({ onClose, tradeId, initialDate }: { onClose: () => void; tradeId?: string; initialDate?: string }) {
@@ -28,20 +28,21 @@ export function AddTradeModal({ onClose, tradeId, initialDate }: { onClose: () =
   const { setOpen } = useModal();
   const { toast } = useToast();
   const existing = data.trades.find((t) => t.id === tradeId);
-  const startItems = existing?.rules.map((r) => r.text) ?? defaultChecklist;
+  const startItems = existing?.rules.map((r) => r.text) ?? [];
   const [tags, setTags] = useState<string[]>(existing?.psychology ?? []);
-  const [checklistId, setChecklistId] = useState("default");
+  const [checklistId, setChecklistId] = useState(() => {
+    if (!existing) return "";
+    return data.checklists.find((c) => c.name === existing.checklistName)?.id ?? (existing.rules.length ? "existing" : "");
+  });
   const items =
-    existing && checklistId === "default" && !data.checklists.length
+    checklistId === "existing"
       ? startItems
-      : checklistId === "default"
-        ? defaultChecklist
-        : data.checklists.find((c) => c.id === checklistId)?.items ?? defaultChecklist;
+      : data.checklists.find((c) => c.id === checklistId)?.items ?? [];
   const [rules, setRules] = useState(existing?.rules.map((r) => r.checked) ?? items.map(() => false));
   const [direction, setDirection] = useState<"" | "Buy" | "Sell">(existing?.direction ?? "");
   const [session, setSession] = useState(existing?.session ?? "");
   const [pair, setPair] = useState(existing?.symbol ?? "");
-  const [date, setDate] = useState(existing?.date ?? initialDate ?? TODAY_ISO);
+  const [date, setDate] = useState(existing?.date ?? initialDate ?? todayIso());
   const [risk, setRisk] = useState(existing?.risk.replace("%", "") ?? "");
   const [sl, setSl] = useState(existing?.slPips ?? "");
   const [tp, setTp] = useState(existing?.tpPips ?? "");
@@ -74,8 +75,7 @@ export function AddTradeModal({ onClose, tradeId, initialDate }: { onClose: () =
 
   function applyChecklist(id: string) {
     setChecklistId(id);
-    const next =
-      id === "default" ? defaultChecklist : data.checklists.find((c) => c.id === id)?.items ?? defaultChecklist;
+    const next = id === "existing" ? startItems : data.checklists.find((c) => c.id === id)?.items ?? [];
     setRules(next.map(() => false));
   }
 
@@ -94,9 +94,9 @@ export function AddTradeModal({ onClose, tradeId, initialDate }: { onClose: () =
       risk: risk ? `${Number(risk).toFixed(2)}%` : "",
       psychology: tags,
       checklistName:
-        checklistId === "default"
-          ? "Default Checklist"
-          : data.checklists.find((c) => c.id === checklistId)?.name ?? "Default",
+        checklistId === "existing"
+          ? existing?.checklistName ?? ""
+          : data.checklists.find((c) => c.id === checklistId)?.name ?? "",
       rules: items.map((text, i) => ({ text, checked: Boolean(rules[i]) })),
       notes,
       proofUrl: applied,
@@ -207,7 +207,8 @@ export function AddTradeModal({ onClose, tradeId, initialDate }: { onClose: () =
             <div className="flex-1">
               <p className="label">Select Checklist</p>
               <Select value={checklistId} onChange={(e) => applyChecklist(e.target.value)}>
-                <option value="default">Default Checklist</option>
+                <option value="">None</option>
+                {checklistId === "existing" ? <option value="existing">Saved on this trade</option> : null}
                 {data.checklists.map((c) => (
                   <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
@@ -217,6 +218,11 @@ export function AddTradeModal({ onClose, tradeId, initialDate }: { onClose: () =
               + Create Custom Checklist
             </button>
           </div>
+          {items.length === 0 ? (
+            <p className="rounded-xl bg-white px-3 py-4 text-sm text-ink-faint dark:bg-[#151a21]">
+              No checklist selected. Create one, or take the trade without a checklist.
+            </p>
+          ) : (
           <ul className="space-y-2">
             {items.map((item, i) => (
               <li key={`${checklistId}-${item}-${i}`}>
@@ -246,6 +252,7 @@ export function AddTradeModal({ onClose, tradeId, initialDate }: { onClose: () =
               </li>
             ))}
           </ul>
+          )}
         </div>
 
         <div>
@@ -299,6 +306,21 @@ export function AddTradeModal({ onClose, tradeId, initialDate }: { onClose: () =
               })}
             </div>
           )}
+          {accounts.length > 0 && parseRiskPct(risk) > 0 ? (
+            <ul className="mt-3 space-y-1 text-xs text-ink-muted">
+              {accounts.map((id) => {
+                const a = data.accounts.find((x) => x.id === id);
+                if (!a) return null;
+                const amt = (a.balance * parseRiskPct(risk)) / 100;
+                return (
+                  <li key={id}>
+                    {a.name}: {parseRiskPct(risk)}% of ${a.balance.toLocaleString()} ={" "}
+                    <span className="font-semibold text-ink dark:text-white">${amt.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}</span>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : null}
         </div>
 
         <div className="rounded-2xl border border-rose-100 bg-rose-50/70 p-4 dark:border-red-500/20 dark:bg-red-500/10">

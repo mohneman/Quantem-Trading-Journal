@@ -26,7 +26,7 @@ import {
 import { PageHeader } from "../components/layout/PageHeader";
 import { Badge } from "../components/ui/Badge";
 import { useMenu } from "../hooks";
-import { formatPnl, journalPreview, parseRr, weekdayShort } from "../lib";
+import { formatPnl, journalPreview, parseRr, tradeTotalPnl, weekdayShort } from "../lib";
 import { TODAY_ISO } from "../data";
 import { useStore, type Trade } from "../store";
 import { useModal } from "../context/ModalContext";
@@ -44,7 +44,11 @@ export function DashboardPage() {
   const [hoverWeek, setHoverWeek] = useState<number | null>(null);
 
   const cutoff = range === "All" ? "2000-01-01" : daysBack(range);
-  const trades = data.trades.filter((t) => t.date >= cutoff && t.outcome !== "OPEN");
+  const scaledTrades = useMemo(
+    () => data.trades.map((t) => ({ ...t, pnl: tradeTotalPnl(t, data.accounts) })),
+    [data.trades, data.accounts]
+  );
+  const trades = scaledTrades.filter((t) => t.date >= cutoff && t.outcome !== "OPEN");
   const wins = trades.filter((t) => t.outcome === "WIN").length;
   const losses = trades.filter((t) => t.outcome === "LOSS").length;
   const closed = wins + losses;
@@ -53,11 +57,11 @@ export function DashboardPage() {
   const avgRr =
     trades.length === 0 ? 0 : trades.reduce((s, t) => s + parseRr(t.rr), 0) / trades.length;
 
-  const weekRows = useMemo(() => weeksOfMonth(month.y, month.m, data.trades), [month, data.trades]);
-  const dayTrades = data.trades.filter((t) => t.date === selected);
+  const weekRows = useMemo(() => weeksOfMonth(month.y, month.m, scaledTrades), [month, scaledTrades]);
+  const dayTrades = scaledTrades.filter((t) => t.date === selected);
   const dayPnl = dayTrades.reduce((s, t) => s + t.pnl, 0);
   const dayJournal = data.journals.find((j) => j.date === selected);
-  const recent = [...data.trades].sort((a, b) => b.date.localeCompare(a.date) || b.no - a.no).slice(0, 8);
+  const recent = [...scaledTrades].sort((a, b) => b.date.localeCompare(a.date) || b.no - a.no).slice(0, 8);
 
   const equity = cumulative(trades);
   const dow = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => ({
@@ -73,30 +77,30 @@ export function DashboardPage() {
   }
 
   return (
-    <div>
+    <div className="space-y-4 sm:space-y-5">
       <PageHeader
         title="Trading Command Center"
         subtitle="Track performance, review timing, and stay aligned with your edge."
         onMenu={onMenu}
       />
 
-      <div className="page-shell p-5 sm:p-7">
-        <div className="rounded-[24px] bg-gradient-to-r from-violet-100/90 via-cyan-50 to-emerald-50 px-6 py-6 dark:from-violet-500/20 dark:via-brand/10 dark:to-transparent">
-          <span className="inline-flex rounded-full bg-white/80 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-brand">
-            OVERVIEW
-          </span>
-          <h2 className="mt-3 text-2xl font-semibold text-ink dark:text-white">Welcome back, {firstName} 👋</h2>
-          <p className="mt-1 text-sm text-ink-muted">Here's your trading performance at a glance.</p>
-        </div>
+      <section className="card card-static rounded-[28px] bg-gradient-to-r from-white via-emerald-50/80 to-white px-5 py-5 sm:px-6 sm:py-6 dark:from-[#151a21] dark:via-brand/10 dark:to-[#151a21]">
+        <span className="inline-flex rounded-full bg-emerald-50 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-brand dark:bg-brand/15">
+          OVERVIEW
+        </span>
+        <h2 className="mt-3 text-xl font-semibold text-ink dark:text-white sm:text-2xl">Welcome back, {firstName} 👋</h2>
+        <p className="mt-1 text-sm text-ink-muted">Here's your trading performance at a glance.</p>
+      </section>
 
-        <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <StatCard icon={<BookOpen size={18} />} value={String(trades.length)} numeric={trades.length} label="Total Trades" hint={range} tint="from-teal-50 to-emerald-50" iconBg="bg-brand/15 text-brand" />
-          <StatCard icon={<Crosshair size={18} />} value={`${winRate}%`} numeric={winRate} suffix="%" label="Win Rate" hint="Based on outcomes" tint="from-sky-50 to-indigo-50" iconBg="bg-sky-100 text-sky-600" />
-          <StatCard icon={<TrendingUp size={18} />} value={`1:${avgRr.toFixed(1)}`} numeric={avgRr} prefix="1:" decimals={1} label="Avg Risk:Reward" hint="Average RR" tint="from-amber-50 to-orange-50" iconBg="bg-amber-100 text-amber-600" />
-          <StatCard icon={<Trophy size={18} />} value={formatPnl(pnl)} numeric={pnl} money label="Total PnL" hint={pnl === 0 ? "Flat" : "Net"} tint="from-emerald-50 to-teal-50" iconBg="bg-emerald-100 text-emerald-600" />
-        </div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard icon={<BookOpen size={18} />} value={String(trades.length)} numeric={trades.length} label="Total Trades" hint={range} tint="from-teal-50 to-emerald-50" iconBg="bg-brand/15 text-brand" />
+        <StatCard icon={<Crosshair size={18} />} value={`${winRate}%`} numeric={winRate} suffix="%" label="Win Rate" hint="Based on outcomes" tint="from-sky-50 to-indigo-50" iconBg="bg-sky-100 text-sky-600" />
+        <StatCard icon={<TrendingUp size={18} />} value={`1:${avgRr.toFixed(1)}`} numeric={avgRr} prefix="1:" decimals={1} label="Avg Risk:Reward" hint="Average RR" tint="from-amber-50 to-orange-50" iconBg="bg-amber-100 text-amber-600" />
+        <StatCard icon={<Trophy size={18} />} value={formatPnl(pnl)} numeric={pnl} money label="Total PnL" hint={pnl === 0 ? "Flat" : "Net"} tint="from-emerald-50 to-teal-50" iconBg="bg-emerald-100 text-emerald-600" />
+      </div>
 
-        <div className="mt-5 flex flex-wrap items-center justify-between gap-2">
+      <div className="page-shell p-4 sm:p-7">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap gap-2">
             {ranges.map((r) => (
               <button
@@ -122,11 +126,11 @@ export function DashboardPage() {
           </button>
         </div>
 
-        <div className="mt-6 grid gap-5 xl:grid-cols-[1.35fr_240px_280px]">
+        <div className="mt-6 grid gap-5 lg:grid-cols-2 xl:grid-cols-[1.35fr_minmax(200px,240px)_minmax(220px,280px)]">
           <MonthCalendar
             year={month.y}
             month={month.m}
-            trades={data.trades}
+            trades={scaledTrades}
             selected={selected}
             hoverWeek={hoverWeek}
             onSelect={pickDay}
@@ -181,8 +185,8 @@ export function DashboardPage() {
               {dayTrades.length === 0 ? (
                 <p className="mt-4 text-sm text-ink-faint">No trades on this day. Click a calendar cell to inspect it.</p>
               ) : (
-                <div className="mt-3 overflow-hidden rounded-xl border border-line dark:border-[#243041]">
-                  <table className="w-full text-left text-xs">
+                <div className="table-scroll mt-3">
+                  <table className="w-full min-w-[420px] text-left text-xs">
                     <thead className="bg-slate-50 text-[10px] uppercase tracking-wide text-ink-faint dark:bg-white/5">
                       <tr>
                         {["Pair", "Dir", "Result", "P&L", ""].map((h) => (
@@ -304,7 +308,7 @@ export function DashboardPage() {
               + Add Trade
             </button>
           </div>
-          <div className="overflow-x-auto">
+          <div className="table-scroll rounded-none border-0 border-t border-line dark:border-[#243041]">
             <table className="min-w-full text-left text-sm">
               <thead className="border-y border-line bg-slate-50 text-[10px] uppercase tracking-wide text-ink-faint dark:border-[#243041] dark:bg-white/5">
                 <tr>
@@ -439,13 +443,13 @@ function StatCard({
   const n = useAnimatedNumber(numeric);
   const display = money ? formatPnl(n) : `${prefix}${decimals ? n.toFixed(decimals) : Math.round(n)}${suffix}`;
   return (
-    <article className={`rounded-2xl bg-gradient-to-br p-4 shadow-soft transition duration-300 hover:-translate-y-1 hover:scale-[1.02] hover:shadow-card ${tint} dark:from-white/5 dark:to-white/0`}>
-      <div className="flex items-start justify-between">
-        <div className={`grid h-10 w-10 place-items-center rounded-full ${iconBg}`}>{icon}</div>
+    <article className={`rounded-[28px] bg-gradient-to-br p-5 shadow-soft ${tint} dark:from-white/5 dark:to-white/0`}>
+      <div className="flex items-start justify-between gap-3">
+        <div className={`grid h-10 w-10 place-items-center rounded-2xl ${iconBg}`}>{icon}</div>
         <span className="text-[11px] text-ink-faint">{hint}</span>
       </div>
-      <p className="mt-4 text-2xl font-semibold dark:text-white">{numeric === 0 && !money ? value : display}</p>
-      <p className="text-sm text-ink-muted">{label}</p>
+      <p className="mt-5 break-words text-3xl font-semibold leading-none dark:text-white">{numeric === 0 && !money ? value : display}</p>
+      <p className="mt-2 text-sm text-ink-muted">{label}</p>
     </article>
   );
 }
