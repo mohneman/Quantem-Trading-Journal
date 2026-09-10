@@ -9,7 +9,7 @@ import { ProfileSettingsModal } from "../modals/ProfileSettingsModal";
 import { TradeViewModal } from "../modals/TradeViewModal";
 import { TradeOutcomeModal } from "../modals/TradeOutcomeModal";
 import { ChecklistSettingsModal } from "../modals/ChecklistSettingsModal";
-import { HelpModal, UpgradeModal } from "../modals/HelpModal";
+import { HelpModal } from "../modals/HelpModal";
 
 export function ModalProvider({ children }: { children: ReactNode }) {
   const [open, setOpenName] = useState<ModalName>(null);
@@ -53,7 +53,6 @@ export function ModalProvider({ children }: { children: ReactNode }) {
       ) : null}
       {open === "checklist" ? <ChecklistSettingsModal onClose={close} /> : null}
       {open === "help" ? <HelpModal onClose={close} /> : null}
-      {open === "upgrade" ? <UpgradeModal onClose={close} /> : null}
     </ModalContext.Provider>
   );
 }

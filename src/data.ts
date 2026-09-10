@@ -10,14 +10,6 @@ export const user = {
   initials: "AA",
 };
 
-export const defaultChecklist = [
-  "Soo hel Trend-ka (H1/H4 for S1) (15M for S2/S3) (5M for S4)",
-  "Soo hel Zone-ka maamulaya Order Flow-ga suuqa.",
-  "Sug in Liquidity-ga lagu jebiyo Reversal Volume muuqda.",
-  "Hubi in Volume-ka uu keeno Countertrend Break.",
-  "Hubi in Momentum-ku la jaanqaadayo direction-ka.",
-];
-
 export const psychologyTags = [
   "FOMO",
   "Calm",

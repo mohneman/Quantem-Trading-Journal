@@ -370,7 +370,7 @@ function PhaseCheckModal({
         <CheckSquare size={18} />
       </span>
     }>
-      <div className="overflow-x-auto rounded-xl border border-line dark:border-[#243041]">
+      <div className="table-scroll rounded-xl border border-line dark:border-[#243041]">
         <table className="min-w-full text-left text-sm">
           <thead className="bg-slate-50 text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-faint dark:bg-white/5">
             <tr>

@@ -104,6 +104,13 @@ export async function apiForgot(email: string) {
   }
 }
 
+export async function apiChangePassword(currentPassword: string, password: string) {
+  await request("auth/password", {
+    method: "POST",
+    body: JSON.stringify({ currentPassword, password }),
+  });
+}
+
 export async function apiReset(email: string, token: string, password: string) {
   const out = await request<{ token: string; user: RemoteUser }>("auth/reset", {
     method: "POST",

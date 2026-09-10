@@ -31,35 +31,35 @@ export function Modal({
   muted,
 }: Props) {
   return (
-    <div className={`animate-overlay-in fixed inset-0 flex items-start justify-center overflow-y-auto bg-slate-900/50 p-4 py-8 backdrop-blur-[5px] sm:p-8 ${stacked ? "z-[70]" : "z-50"}`}>
+    <div className={`animate-overlay-in fixed inset-0 flex items-start justify-center overflow-y-auto bg-slate-900/50 p-3 py-6 backdrop-blur-[5px] sm:p-8 sm:py-8 ${stacked ? "z-[70]" : "z-50"}`}>
       <button
         aria-label="Close overlay"
         className="absolute inset-0 cursor-default"
         onClick={onClose}
       />
       <div
-        className={`animate-modal-in relative z-10 w-full overflow-hidden rounded-2xl shadow-modal ${
+        className={`animate-modal-in relative z-10 my-auto w-full max-h-[min(92dvh,920px)] overflow-y-auto overflow-x-hidden rounded-[28px] shadow-modal ${
           dark ? "bg-[#2A3038] text-white" : "bg-white dark:bg-[#151a21]"
         } ${xl ? "max-w-6xl" : wide ? "max-w-3xl" : "max-w-xl"}`}
       >
         <header
-          className={`relative flex items-start justify-between gap-4 border-b px-6 py-5 ${
+          className={`relative flex items-start justify-between gap-4 border-b px-4 py-4 sm:px-6 sm:py-5 ${
             dark ? "border-white/10" : "border-line dark:border-[#243041]"
           }`}
         >
           {glow ? (
             <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-teal-100/80 via-violet-50 to-transparent dark:from-brand/15 dark:via-violet-500/10 dark:to-transparent" />
           ) : null}
-          <div className="relative flex items-start gap-3">
+          <div className="relative flex min-w-0 items-start gap-3">
             {icon}
-            <div>
+            <div className="min-w-0">
               <h2 className={`text-lg font-semibold ${dark ? "text-white" : "text-ink dark:text-white"}`}>{title}</h2>
               {subtitle ? (
                 <p className={`mt-1 text-sm ${dark ? "text-slate-300" : "text-ink-muted"}`}>{subtitle}</p>
               ) : null}
             </div>
           </div>
-          <div className="relative flex items-center gap-2">
+          <div className="relative flex shrink-0 items-center gap-2">
             {action}
             <button
               aria-label="Close"
@@ -70,7 +70,7 @@ export function Modal({
             </button>
           </div>
         </header>
-        <div className={`px-6 py-5 ${muted ? "bg-slate-50 dark:bg-[#10151c]" : ""}`}>{children}</div>
+        <div className={`px-4 py-4 sm:px-6 sm:py-5 ${muted ? "bg-slate-50 dark:bg-[#10151c]" : ""}`}>{children}</div>
       </div>
     </div>
   );

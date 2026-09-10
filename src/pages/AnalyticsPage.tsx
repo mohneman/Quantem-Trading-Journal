@@ -709,7 +709,7 @@ export function AnalyticsPage() {
             <p className="text-xs text-ink-muted">Your latest 20 trade entries.</p>
           </div>
         </div>
-        <div className="mt-4 overflow-x-auto bg-white dark:bg-[#151a21]">
+        <div className="table-scroll mt-4 bg-white dark:bg-[#151a21]">
           <table className="min-w-full text-left text-sm">
             <thead className="border-y border-line text-xs uppercase tracking-wide text-ink-faint dark:border-[#243041]">
               <tr>

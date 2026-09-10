@@ -120,7 +120,7 @@ export function rrFromPips(sl: string, tp: string) {
 }
 
 export function gradeFromChecked(checked: number, total: number) {
-  if (!total) return "C";
+  if (!total) return "N/A";
   if (checked === total) return "A+";
   if (checked >= Math.ceil(total * 0.8)) return "A";
   if (checked >= Math.ceil(total * 0.6)) return "B";

@@ -204,7 +204,7 @@ export function TradesPage() {
             <p className="mt-1 text-sm text-ink-muted">Try a different search, grade, status, pair, or date range.</p>
           </div>
         ) : (
-          <div className="mt-4 overflow-x-auto">
+          <div className="table-scroll mt-4">
             <table className="trade-table min-w-full text-left text-sm">
               <thead className="text-[10px] uppercase tracking-[0.14em] text-ink-faint">
                 <tr>

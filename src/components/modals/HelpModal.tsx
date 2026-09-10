@@ -1,6 +1,5 @@
 import { LifeBuoy } from "lucide-react";
 import { Modal } from "../ui/Modal";
-import { Button } from "../ui/Button";
 import { useStore } from "../../store";
 
 export function HelpModal({ onClose }: { onClose: () => void }) {
@@ -23,25 +22,6 @@ export function HelpModal({ onClose }: { onClose: () => void }) {
           <li>Export payouts as CSV from Payout Journal, and print analytics as PDF.</li>
         </ul>
         <p>Powered by Amiinhub.</p>
-      </div>
-    </Modal>
-  );
-}
-
-export function UpgradeModal({ onClose }: { onClose: () => void }) {
-  const { storage } = useStore();
-  const hosted = storage === "mysql";
-  return (
-    <Modal title="Upgrade Plan" subtitle={hosted ? "Quantum cloud journal" : "Quantum local journal"} onClose={onClose} glow>
-      <div className="space-y-3 text-sm text-ink-muted">
-        <p>
-          {hosted
-            ? "You are on the hosted Quantum journal. Signups, approvals, and trade logs are saved in MySQL."
-            : "You are on the local journal. Cloud sync attaches automatically when the cPanel API is available."}
-        </p>
-        <Button variant="gradient" className="w-full" onClick={onClose}>
-          Continue journaling
-        </Button>
       </div>
     </Modal>
   );

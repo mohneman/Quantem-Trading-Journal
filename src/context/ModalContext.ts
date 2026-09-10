@@ -13,7 +13,6 @@ export type ModalName =
   | "tradeOutcome"
   | "checklist"
   | "help"
-  | "upgrade"
   | null;
 
 export type ModalPayload = {

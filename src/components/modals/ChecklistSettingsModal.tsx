@@ -2,9 +2,10 @@ import { useState } from "react";
 import { Modal } from "../ui/Modal";
 import { Field, Input } from "../ui/Field";
 import { Button } from "../ui/Button";
-import { defaultChecklist } from "../../data";
 import { useStore } from "../../store";
 import { useToast } from "../../context/ToastContext";
+
+const emptyRules = () => ["", "", "", "", ""];
 
 export function ChecklistSettingsModal({
   onClose,
@@ -18,7 +19,7 @@ export function ChecklistSettingsModal({
   const { data, addChecklist, updateChecklist, deleteChecklist } = useStore();
   const { toast } = useToast();
   const [name, setName] = useState("");
-  const [items, setItems] = useState([...defaultChecklist]);
+  const [items, setItems] = useState(emptyRules());
   const [editingId, setEditingId] = useState<string | null>(null);
 
   return (
@@ -70,7 +71,7 @@ export function ChecklistSettingsModal({
                 onCreated?.(created.id);
               }
               setName("");
-              setItems([...defaultChecklist]);
+              setItems(emptyRules());
             }}
           >
             {editingId ? "Update Checklist" : "Save Checklist"}
@@ -112,7 +113,7 @@ export function ChecklistSettingsModal({
                         if (editingId === c.id) {
                           setEditingId(null);
                           setName("");
-                          setItems([...defaultChecklist]);
+                          setItems(emptyRules());
                         }
                         toast("Checklist deleted");
                       }}

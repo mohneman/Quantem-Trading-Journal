@@ -12,8 +12,8 @@ import { Button } from "../components/ui/Button";
 export function LoginPage() {
   const { session, login, googleContinue } = useStore();
   const nav = useNavigate();
-  const [email, setEmail] = useState("nejahseid750@gmail.com");
-  const [password, setPassword] = useState("quantum");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [show, setShow] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -62,7 +62,15 @@ export function LoginPage() {
           <span className="mb-1.5 block text-sm font-medium text-ink">Email <span className="text-loss">*</span></span>
           <div className="relative">
             <Mail size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-faint" />
-            <input className="input pl-10" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+            <input
+              className="input pl-10"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Enter email"
+              autoComplete="username"
+              required
+            />
           </div>
         </label>
         <label className="block">
@@ -74,6 +82,8 @@ export function LoginPage() {
               type={show ? "text" : "password"}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              placeholder="Password"
+              autoComplete="current-password"
               required
             />
             <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-faint" onClick={() => setShow((s) => !s)}>
@@ -202,16 +212,16 @@ export function SignupPage() {
           <span className="mb-1.5 block text-sm font-medium text-ink">Full name *</span>
           <div className="relative">
             <UserRound size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-faint" />
-            <input className="input pl-10" value={name} onChange={(e) => setName(e.target.value)} required />
+            <input className="input pl-10" value={name} onChange={(e) => setName(e.target.value)} placeholder="Full name" autoComplete="name" required />
           </div>
         </label>
         <label className="block">
           <span className="mb-1.5 block text-sm font-medium text-ink">Email <span className="text-loss">*</span></span>
-          <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+          <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Enter email" autoComplete="email" required />
         </label>
         <label className="block">
           <span className="mb-1.5 block text-sm font-medium text-ink">Password <span className="text-loss">*</span></span>
-          <input className="input" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} />
+          <input className="input" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" autoComplete="new-password" required minLength={6} />
         </label>
         {error ? <p className="text-sm text-loss">{error}</p> : null}
         <button type="submit" className="btn h-12 w-full bg-[#0F1B2D] text-white hover:bg-[#152238]">

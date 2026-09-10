@@ -168,7 +168,7 @@ export function BacktestsPage() {
             </button>
           </div>
         ) : (
-          <div className="mt-5 overflow-x-auto">
+          <div className="table-scroll mt-5">
             <table className="min-w-full text-left text-sm">
               <thead className="border-y border-line text-[11px] uppercase tracking-wide text-ink-faint dark:border-[#243041]">
                 <tr>
@@ -361,7 +361,7 @@ export function CouponsPage() {
   return (
     <div>
       <PageHeader title="Partner Offers" subtitle="Quick access to exclusive benefits, discounts, and trading perks." onMenu={onMenu} />
-      <div className="page-shell overflow-hidden p-5 sm:p-7">
+      <div className="page-shell p-4 sm:p-7">
         <div className="rounded-[22px] bg-gradient-to-r from-teal-50/90 via-white to-violet-50/80 p-6 dark:from-brand/15 dark:via-transparent dark:to-violet-500/10">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
@@ -1068,6 +1068,7 @@ export function PayoutsPage() {
           {data.payouts.length === 0 ? (
             <p className="py-12 text-center text-sm text-ink-faint">No payouts yet.</p>
           ) : (
+            <div className="table-scroll rounded-none border-0">
             <table className="min-w-full text-left text-sm">
               <thead className="text-[11px] uppercase tracking-wide text-ink-faint">
                 <tr>
@@ -1088,6 +1089,7 @@ export function PayoutsPage() {
                 ))}
               </tbody>
             </table>
+            </div>
           )}
         </div>
       </div>
@@ -1114,7 +1116,7 @@ export function PayoutJournalPage() {
   return (
     <div>
       <PageHeader title="Payout Journal" subtitle="Review every payout request with clearer status visibility." onMenu={onMenu} />
-      <div className="page-shell overflow-hidden p-5 sm:p-7">
+      <div className="page-shell p-4 sm:p-7">
         <div className="flex flex-wrap items-end justify-between gap-3 rounded-[22px] bg-gradient-to-r from-teal-50/80 via-white to-emerald-50/80 p-5 dark:from-brand/10 dark:via-transparent dark:to-emerald-500/10">
           <div>
             <span className="inline-flex rounded-full bg-brand/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-brand">PAYOUT LOGS</span>
@@ -1159,7 +1161,7 @@ export function PayoutJournalPage() {
           </div>
         </div>
 
-        <div className="mt-4 overflow-x-auto">
+        <div className="table-scroll mt-4">
           <table className="min-w-full text-left text-sm">
             <thead className="border-y border-line bg-slate-50 text-[11px] uppercase tracking-wide text-ink-faint dark:border-[#243041] dark:bg-white/5">
               <tr>
@@ -1227,7 +1229,7 @@ export function AffiliatePage() {
         }
         onMenu={onMenu}
       />
-      <div className="page-shell overflow-hidden p-5 sm:p-8">
+      <div className="page-shell p-4 sm:p-8">
         <div className="rounded-[24px] bg-gradient-to-r from-teal-50 via-white to-violet-50 p-6 dark:from-brand/15 dark:via-transparent dark:to-violet-500/10">
           <span className="inline-flex rounded-full bg-brand/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-brand">PARTNERS</span>
           <h2 className="mt-2 text-2xl font-semibold dark:text-white">Invite traders.</h2>
@@ -1263,7 +1265,7 @@ export function AffiliatePage() {
               <Users size={16} className="text-brand" />
               <p className="font-semibold dark:text-white">All referral activity</p>
             </div>
-            <div className="overflow-x-auto">
+            <div className="table-scroll rounded-none border-0">
               <table className="w-full min-w-[720px] text-left text-sm">
                 <thead className="bg-slate-50 text-[11px] uppercase tracking-wide text-ink-faint dark:bg-white/5">
                   <tr>
